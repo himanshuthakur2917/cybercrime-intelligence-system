@@ -1,5 +1,11 @@
-"use client";
+import React from 'react'
 
-import KingpinsPage from "@/app/kingpins/page";
+const page = () => {
+  return (
+    <div>
+      {/* Kingpins leader board page goes here */}
+    </div>
+  )
+}
 
-export default KingpinsPage;
+export default page

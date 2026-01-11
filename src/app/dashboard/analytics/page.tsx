@@ -3,7 +3,7 @@ import React from 'react'
 const page = () => {
   return (
     <div>
-      {/* Fraud Ring detection page goes here */}
+      {/* Analytics page goes here */}
     </div>
   )
 }
