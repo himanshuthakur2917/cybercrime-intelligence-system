@@ -2,33 +2,22 @@
 
 import * as React from "react";
 import {
-  IconCamera,
+  IconAward,
+  IconCarouselVertical,
   IconChartAreaLine,
-  IconChartAreaLineFilled,
   IconChartBar,
   IconCrown,
-  IconCrownFilled,
-  IconDashboard,
-  IconDatabase,
-  IconFileAi,
   IconFileDescription,
-  IconFileWord,
-  IconFolder,
-  IconGraph,
   IconHelp,
-  IconInnerShadowTop,
-  IconListDetails,
-  IconNetwork,
-  IconReport,
   IconSearch,
   IconSettings,
-  IconShield,
   IconShieldCheckeredFilled,
+  IconStackBack,
   IconTopologyRing,
   IconUsers,
+  IconUserShield,
 } from "@tabler/icons-react";
 
-import { NavDocuments } from "@/components/dashboard/nav-documents";
 import { NavMain } from "@/components/dashboard/nav-main";
 import { NavSecondary } from "@/components/dashboard/nav-secondary";
 import { NavUser } from "@/components/dashboard/nav-user";
@@ -41,6 +30,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import { usePathname } from "next/navigation";
 
 export const sidebarData = {
   user: {
@@ -48,6 +38,33 @@ export const sidebarData = {
     email: "m@example.com",
     avatar: "/avatars/shadcn.jpg",
   },
+  adminNav:[
+    {
+      title: "Overview",
+      url: "/admin",
+      icon: IconCarouselVertical,
+    },
+    {
+      title: "Case Management",
+      url: "/admin/cases",
+      icon: IconFileDescription,
+    },
+    {
+      title: "Officer Management",
+      url: "/admin/officers",
+      icon: IconUserShield,
+    },
+    {
+      title: "Warrants",
+      url: "/admin/warrants",
+      icon: IconAward,
+    },
+    {
+      title: "Audit Logs",
+      url: "/admin/audits",
+      icon: IconStackBack,
+    },
+  ],
   navMain: [
     {
       title: "Network View",
@@ -95,6 +112,17 @@ export const sidebarData = {
 };
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const pathname = usePathname();
+  const [navItems, setNavItems] = React.useState(sidebarData.navMain);
+
+  React.useEffect(() => {
+    if (pathname.includes("/admin")) {
+      setNavItems(sidebarData.adminNav);
+    } else {
+      setNavItems(sidebarData.navMain);
+    }
+  },[pathname])
+
   return (
     <Sidebar collapsible="offcanvas" {...props}>
       <SidebarHeader>
@@ -118,7 +146,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={sidebarData.navMain} />
+        <NavMain items={navItems} />
         <NavSecondary items={sidebarData.navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
