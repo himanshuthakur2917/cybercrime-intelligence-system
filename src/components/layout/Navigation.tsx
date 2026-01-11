@@ -5,10 +5,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const navItems = [
-  { href: "/", label: "Network View", icon: Network },
-  { href: "/kingpins", label: "Kingpins Leaderboard", icon: Crown },
-  { href: "/rings", label: "Rings Detection", icon: Share2 },
-  { href: "/brief", label: "AI Brief Generator", icon: BrainCircuit },
+  { href: "/dashboard/network", label: "Network View", icon: Network },
+  { href: "/dashboard/kingpins", label: "Kingpins Leaderboard", icon: Crown },
+  { href: "/dashboard/rings", label: "Rings Detection", icon: Share2 },
+  { href: "/dashboard/brief", label: "AI Brief Generator", icon: BrainCircuit },
 ];
 
 export default function Navigation() {
