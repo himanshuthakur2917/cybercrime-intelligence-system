@@ -31,7 +31,7 @@ export class Neo4jService implements OnModuleInit, OnModuleDestroy {
     return this.driver.session();
   }
 
-  async readCypher(query: string, params: Record<string, any> = {}) {
+  async readCypher(query: string, params: any = {}) {
     const session = this.getSession();
 
     try {
@@ -42,7 +42,7 @@ export class Neo4jService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  async writeCypher(query: string, params: Record<string, any> = {}) {
+  async writeCypher(query: string, params: any = {}) {
     const session = this.getSession();
 
     try {
