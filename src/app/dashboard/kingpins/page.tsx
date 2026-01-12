@@ -1,12 +1,7 @@
 import React from 'react'
 
-const page = () => {
-  return (
+git 
     // <div>
       // {/* Kingpins leader board page goes here */}
     // </div>
-    
-  );
-}
-
-export default page
+  
