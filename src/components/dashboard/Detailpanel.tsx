@@ -40,15 +40,15 @@ export default function DetailPanel({
 
   return (
     <div
-      className={`absolute top-0 right-0 h-full w-[420px] glass-panel z-40 transform transition-transform duration-300 flex flex-col ${
+      className={`absolute top-0 right-0 h-full w-[420px] bg-card border-l border-border z-40 transform transition-transform duration-300 flex flex-col ${
         isOpen ? "translate-x-0" : "translate-x-full"
       }`}
     >
       {/* Header */}
-      <div className="p-6 border-b border-[rgba(255,255,255,0.1)] flex justify-between items-start shrink-0">
+      <div className="p-6 border-b border-border flex justify-between items-start shrink-0">
         <div>
-          <h3 className="text-xl font-bold text-white mb-1">{suspect.name}</h3>
-          <div className="flex items-center gap-2 text-xs text-[#8B949E] font-mono">
+          <h3 className="text-xl font-bold text-card-foreground mb-1">{suspect.name}</h3>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground font-mono">
             <span>ID: {suspect.id}</span>
             <span>•</span>
             <span>{suspect.phone}</span>
@@ -56,7 +56,7 @@ export default function DetailPanel({
         </div>
         <Button
           onClick={onClose}
-          className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-[#8B949E] hover:text-white transition-colors"
+          className="w-8 h-8 rounded-full bg-muted hover:bg-accent flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
         >
           <X className="w-4 h-4" />
         </Button>
@@ -65,7 +65,7 @@ export default function DetailPanel({
       {/* Scrollable Content */}
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
         {/* Risk Section */}
-        <div className="p-5 rounded-xl bg-[#0A0E13]/80 border border-[rgba(255,255,255,0.1)]">
+        <div className="p-5 rounded-xl bg-muted border border-border">
           <div className="flex justify-between items-center mb-3">
             <span
               className={`px-2 py-1 rounded text-white text-xs font-bold tracking-wide`}
@@ -74,11 +74,11 @@ export default function DetailPanel({
               {suspect.riskLevel === "critical" && "🔴"}{" "}
               {suspect.riskLevel.toUpperCase()} RISK
             </span>
-            <span className="text-sm text-white font-semibold">
+            <span className="text-sm text-foreground font-semibold">
               Score: {(suspect.riskScore / 10).toFixed(1)}/10
             </span>
           </div>
-          <div className="w-full h-2 bg-[#161B22] rounded-full overflow-hidden mb-3">
+          <div className="w-full h-2 bg-secondary rounded-full overflow-hidden mb-3">
             <div
               className="h-full transition-all duration-500"
               style={{
@@ -87,9 +87,9 @@ export default function DetailPanel({
               }}
             />
           </div>
-          <p className="text-sm text-[#E1E4E8]">
+          <p className="text-sm text-foreground/80">
             Role:{" "}
-            <span className="text-white font-medium">
+            <span className="text-foreground font-medium">
               {suspect.role} / Network{" "}
               {suspect.role === "Kingpin" ? "Coordinator" : "Member"}
             </span>
@@ -97,34 +97,34 @@ export default function DetailPanel({
         </div>
 
         {/* Influence Metrics */}
-        <div className="glass-card-static p-5">
-          <h4 className="text-sm font-semibold text-white mb-4">
+        <div className="bg-muted p-5 rounded-lg border border-border">
+          <h4 className="text-sm font-semibold text-foreground mb-4">
             Influence Metrics
           </h4>
           <div className="space-y-3">
             <div className="flex justify-between text-sm">
-              <span className="text-[#8B949E]">Centrality Score</span>
-              <span className="text-[#1E88E5] font-mono font-bold">
+              <span className="text-muted-foreground">Centrality Score</span>
+              <span className="text-blue-500 font-mono font-bold">
                 {suspect.centralityScore}/100
               </span>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-[#8B949E]">Connected Suspects</span>
-              <span className="text-white font-mono">
+              <span className="text-muted-foreground">Connected Suspects</span>
+              <span className="text-foreground font-mono">
                 {connectedSuspects.length} (
                 {connectedSuspects.map((s) => s.id).join(", ")})
               </span>
             </div>
             <div className="grid grid-cols-2 gap-2 mt-2">
-              <div className="bg-white/5 p-2 rounded text-center">
-                <p className="text-xs text-[#6E7681]">Calls Out</p>
-                <p className="text-lg font-mono text-white">
+              <div className="bg-accent/20 p-2 rounded text-center border border-border">
+                <p className="text-xs text-muted-foreground">Calls Out</p>
+                <p className="text-lg font-mono text-foreground">
                   {suspect.callsInitiated}
                 </p>
               </div>
-              <div className="bg-white/5 p-2 rounded text-center">
-                <p className="text-xs text-[#6E7681]">Calls In</p>
-                <p className="text-lg font-mono text-white">
+              <div className="bg-accent/20 p-2 rounded text-center border border-border">
+                <p className="text-xs text-muted-foreground">Calls In</p>
+                <p className="text-lg font-mono text-foreground">
                   {suspect.callsReceived}
                 </p>
               </div>
@@ -133,40 +133,40 @@ export default function DetailPanel({
         </div>
 
         {/* Financial Footprint */}
-        <div className="glass-card-static p-5">
-          <h4 className="text-sm font-semibold text-white mb-4">
+        <div className="bg-muted p-5 rounded-lg border border-border">
+          <h4 className="text-sm font-semibold text-foreground mb-4">
             Financial Footprint
           </h4>
           <div className="space-y-4">
             <div className="flex items-start gap-3">
-              <div className="p-2 rounded bg-[#388E3C]/10 text-[#388E3C]">
+              <div className="p-2 rounded bg-green-500/20 text-green-600 dark:text-green-400">
                 <ArrowDownLeft className="w-4 h-4" />
               </div>
               <div>
-                <p className="text-sm text-[#8B949E]">Money In</p>
-                <p className="text-base font-bold text-white font-mono">
+                <p className="text-sm text-muted-foreground">Money In</p>
+                <p className="text-base font-bold text-foreground font-mono">
                   {formatCurrency(moneyIn)}
                 </p>
-                <p className="text-xs text-[#6E7681]">From linked accounts</p>
+                <p className="text-xs text-muted-foreground/70">From linked accounts</p>
               </div>
             </div>
             <div className="flex items-start gap-3">
-              <div className="p-2 rounded bg-[#D32F2F]/10 text-[#D32F2F]">
+              <div className="p-2 rounded bg-red-500/20 text-red-600 dark:text-red-400">
                 <ArrowUpRight className="w-4 h-4" />
               </div>
               <div>
-                <p className="text-sm text-[#8B949E]">Money Out</p>
-                <p className="text-base font-bold text-white font-mono">
+                <p className="text-sm text-muted-foreground">Money Out</p>
+                <p className="text-base font-bold text-foreground font-mono">
                   {formatCurrency(moneyOut)}
                 </p>
-                <p className="text-xs text-[#6E7681]">To linked accounts</p>
+                <p className="text-xs text-muted-foreground/70">To linked accounts</p>
               </div>
             </div>
-            <div className="pt-3 border-t border-[rgba(255,255,255,0.1)] flex justify-between items-center">
-              <span className="text-sm text-[#8B949E]">Net Flow</span>
+            <div className="pt-3 border-t border-border flex justify-between items-center">
+              <span className="text-sm text-muted-foreground">Net Flow</span>
               <span
                 className={`font-mono font-bold ${
-                  netFlow >= 0 ? "text-[#388E3C]" : "text-[#FBC02D]"
+                  netFlow >= 0 ? "text-green-600 dark:text-green-400" : "text-yellow-600 dark:text-yellow-400"
                 }`}
               >
                 {netFlow >= 0 ? "+" : ""}
@@ -178,8 +178,8 @@ export default function DetailPanel({
 
         {/* Recommendations */}
         {suspect.riskLevel === "critical" && (
-          <div className="glass-card-static p-5 border-l-2 border-l-[#D32F2F] bg-[#D32F2F]/5">
-            <h4 className="text-sm font-bold text-[#D32F2F] mb-3 flex items-center gap-2">
+          <div className="bg-destructive/10 p-5 rounded-lg border-l-4 border-l-destructive border border-border">
+            <h4 className="text-sm font-bold text-destructive mb-3 flex items-center gap-2">
               <AlertTriangle className="w-4 h-4" />
               Priority: ARREST IMMEDIATELY
             </h4>
@@ -191,17 +191,17 @@ export default function DetailPanel({
               ].map((action, i) => (
                 <label
                   key={i}
-                  className="flex items-center gap-2 text-sm text-[#E1E4E8] cursor-pointer"
+                  className="flex items-center gap-2 text-sm text-foreground/90 cursor-pointer"
                 >
                   <input
                     type="checkbox"
-                    className="rounded border-[rgba(255,255,255,0.2)] bg-transparent text-[#1E88E5] focus:ring-0 w-4 h-4"
+                    className="rounded border-border bg-transparent text-primary focus:ring-0 w-4 h-4"
                   />
                   {action}
                 </label>
               ))}
             </div>
-            <div className="mt-4 inline-flex items-center gap-1 px-2 py-1 bg-[#388E3C]/10 text-[#388E3C] text-xs font-bold rounded">
+            <div className="mt-4 inline-flex items-center gap-1 px-2 py-1 bg-green-500/20 text-green-600 dark:text-green-400 text-xs font-bold rounded">
               <Check className="w-3 h-3" />
               95% Prosecution-Ready
             </div>
@@ -210,11 +210,11 @@ export default function DetailPanel({
       </div>
 
       {/* Footer Actions */}
-      <div className="p-6 border-t border-[rgba(255,255,255,0.1)] grid grid-cols-2 gap-4 shrink-0 bg-[#161B22]">
-        <button className="bg-[#1E88E5] hover:bg-[#00BCD4] text-white py-2 rounded-lg text-sm font-medium transition-colors">
+      <div className="p-6 border-t border-border grid grid-cols-2 gap-4 shrink-0 bg-muted">
+        <button className="bg-primary hover:bg-primary/90 text-primary-foreground py-2 rounded-lg text-sm font-medium transition-colors">
           View Full Brief
         </button>
-        <button className="bg-white/5 hover:bg-white/10 text-[#E1E4E8] py-2 rounded-lg text-sm font-medium transition-colors border border-[rgba(255,255,255,0.1)]">
+        <button className="bg-secondary hover:bg-secondary/80 text-secondary-foreground py-2 rounded-lg text-sm font-medium transition-colors border border-border">
           Generate Warrant
         </button>
       </div>

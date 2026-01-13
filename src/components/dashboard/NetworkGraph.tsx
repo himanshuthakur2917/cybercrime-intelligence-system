@@ -9,6 +9,7 @@ import {
 import * as d3 from "d3";
 import { ChevronDown, Maximize2, X, ZoomIn, ZoomOut } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Button } from "../ui/button";
 
 interface NetworkGraphProps {
   onNodeClick: (nodeId: string) => void;
@@ -228,19 +229,19 @@ export default function NetworkGraph({ onNodeClick }: NetworkGraphProps) {
   // Fullscreen overlay
   if (isFullscreen) {
     return (
-      <div className="fixed inset-0 z-50 bg-[#0D1117] flex flex-col">
+      <div className="fixed inset-0 z-50 bg-background flex flex-col">
         {/* Fullscreen Header */}
-        <div className="flex justify-between items-center p-4 border-b border-[rgba(255,255,255,0.1)]">
-          <h3 className="text-lg font-semibold text-white">
+        <div className="flex justify-between items-center p-4 border-b border-border">
+          <h3 className="text-lg font-semibold text-foreground">
             Interactive Criminal Network
           </h3>
-          <button
+          <Button
             onClick={toggleFullscreen}
-            className="w-10 h-10 rounded-lg bg-[#D32F2F] hover:bg-[#B71C1C] flex items-center justify-center text-white transition-colors"
+            className="w-10 h-10 rounded-lg bg-destructive hover:bg-destructive/90 flex items-center justify-center text-destructive-foreground transition-colors"
             title="Exit fullscreen"
           >
             <X className="w-5 h-5" />
-          </button>
+          </Button>
         </div>
 
         {/* Fullscreen Graph */}
@@ -249,29 +250,28 @@ export default function NetworkGraph({ onNodeClick }: NetworkGraphProps) {
           className="flex-1 relative overflow-hidden cursor-move"
         >
           <svg ref={svgRef} className="w-full h-full" />
-          <div id="network-tooltip" className="d3-tooltip" />
         </div>
 
         {/* Fullscreen Controls */}
-        <div className="p-4 border-t border-[rgba(255,255,255,0.1)] flex items-center justify-between">
+        <div className="p-4 border-t border-border flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
               onClick={handleZoomIn}
-              className="h-9 px-3 bg-[#161B22] border border-[rgba(255,255,255,0.1)] rounded text-[#8B949E] hover:text-white hover:bg-white/5 transition-colors flex items-center gap-2"
+              className="h-9 px-3 bg-muted border border-border rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors flex items-center gap-2"
               title="Zoom in"
             >
               <ZoomIn className="w-4 h-4" />
             </button>
             <button
               onClick={handleZoomOut}
-              className="h-9 px-3 bg-[#161B22] border border-[rgba(255,255,255,0.1)] rounded text-[#8B949E] hover:text-white hover:bg-white/5 transition-colors flex items-center gap-2"
+              className="h-9 px-3 bg-muted border border-border rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors flex items-center gap-2"
               title="Zoom out"
             >
               <ZoomOut className="w-4 h-4" />
             </button>
             <button
               onClick={handleReset}
-              className="h-9 px-3 bg-[#161B22] border border-[rgba(255,255,255,0.1)] rounded text-[#8B949E] hover:text-white hover:bg-white/5 transition-colors flex items-center gap-2"
+              className="h-9 px-3 bg-muted border border-border rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors flex items-center gap-2"
             >
               <span className="text-xs font-medium">Reset View</span>
             </button>
@@ -281,15 +281,15 @@ export default function NetworkGraph({ onNodeClick }: NetworkGraphProps) {
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-2">
               <span className="w-3 h-3 rounded-full bg-[#D32F2F] glow-critical"></span>
-              <span className="text-xs text-[#8B949E]">Kingpin</span>
+              <span className="text-xs text-muted-foreground">Kingpin</span>
             </div>
             <div className="flex items-center gap-2">
               <span className="w-3 h-3 rounded-full bg-[#F57C00]"></span>
-              <span className="text-xs text-[#8B949E]">Coordinator</span>
+              <span className="text-xs text-muted-foreground">Coordinator</span>
             </div>
             <div className="flex items-center gap-2">
               <span className="w-3 h-3 rounded-full bg-[#388E3C]"></span>
-              <span className="text-xs text-[#8B949E]">Mule</span>
+              <span className="text-xs text-muted-foreground">Mule</span>
             </div>
           </div>
         </div>
@@ -299,37 +299,31 @@ export default function NetworkGraph({ onNodeClick }: NetworkGraphProps) {
 
   // Normal view
   return (
-    <div className="h-full flex flex-col glass-card p-4 overflow-hidden relative">
+    <>
+      <div className="h-full flex flex-col p-4 rounded-lg overflow-hidden shadow-sm ring-1 ring-accent-foreground/10 relative bg-muted">
       {/* Header Row */}
       <div className="flex justify-between items-center mb-3 shrink-0">
-        <h3 className="text-lg font-semibold text-white">
+        <h3 className="text-lg font-semibold text-card-foreground">
           Interactive Criminal Network
         </h3>
         <div className="flex items-center gap-2">
-          <span className="px-2 py-1 rounded badge-outline-critical text-xs font-medium">
-            Critical Risk
-          </span>
-          <span className="px-2 py-1 rounded badge-outline-high text-xs font-medium">
-            High Activity
-          </span>
-          <button
+          <Button
             onClick={toggleFullscreen}
-            className="ml-2 h-8 px-3 bg-[#161B22] border border-[rgba(255,255,255,0.1)] rounded text-[#8B949E] hover:text-white hover:bg-white/5 transition-colors flex items-center gap-2"
+            className="ml-2 h-8 px-3 bg-muted-foreground/20 shadow-sm shadow-black/30 ring-1 ring-accent-foreground/10 rounded text-foreground hover:text-foreground hover:bg-accent transition-colors flex items-center gap-2"
             title="Expand to fullscreen"
           >
             <Maximize2 className="w-4 h-4" />
             <span className="text-xs font-medium hidden sm:inline">Expand</span>
-          </button>
+          </Button>
         </div>
       </div>
 
       {/* D3 Graph Container - Takes all available space */}
       <div
         ref={containerRef}
-        className="graph-container flex-1 w-full relative overflow-hidden cursor-move rounded-lg"
+        className="graph-container flex-1 w-full relative overflow-hidden cursor-move rounded-lg shadow-sm ring-1 ring-accent-foreground/10 bg-background"
       >
         <svg ref={svgRef} className="w-full h-full" />
-        <div id="network-tooltip" className="d3-tooltip" />
       </div>
 
       {/* Controls at bottom */}
@@ -337,51 +331,53 @@ export default function NetworkGraph({ onNodeClick }: NetworkGraphProps) {
         <div className="flex items-center gap-3 mb-3">
           <button
             onClick={handleZoomIn}
-            className="h-9 px-3 bg-[#161B22] border border-[rgba(255,255,255,0.1)] rounded text-[#8B949E] hover:text-white hover:bg-white/5 transition-colors flex items-center gap-2"
+            className="h-9 px-3 rounded text-foreground hover:text-foreground hover:bg-accent transition-colors flex items-center gap-2 bg-muted-foreground/20 shadow-sm shadow-black/30 ring-1 ring-accent-foreground/10"
             title="Zoom in"
           >
             <ZoomIn className="w-4 h-4" />
           </button>
           <button
             onClick={handleZoomOut}
-            className="h-9 px-3 bg-[#161B22] border border-[rgba(255,255,255,0.1)] rounded text-[#8B949E] hover:text-white hover:bg-white/5 transition-colors flex items-center gap-2"
+            className="h-9 px-3 rounded text-foreground hover:text-foreground hover:bg-accent transition-colors flex items-center gap-2 bg-muted-foreground/20 shadow-sm shadow-black/30 ring-1 ring-accent-foreground/10"
             title="Zoom out"
           >
             <ZoomOut className="w-4 h-4" />
           </button>
           <button
             onClick={handleReset}
-            className="h-9 px-3 bg-[#161B22] border border-[rgba(255,255,255,0.1)] rounded text-[#8B949E] hover:text-white hover:bg-white/5 transition-colors flex items-center gap-2"
+            className="h-9 px-3 rounded text-foreground hover:text-foreground hover:bg-accent transition-colors flex items-center gap-2 bg-muted-foreground/20 shadow-sm shadow-black/30 ring-1 ring-accent-foreground/10"
           >
             <span className="text-xs font-medium">Reset View</span>
           </button>
-          <div className="h-6 w-px bg-[rgba(255,255,255,0.1)] mx-1"></div>
-          <button className="h-9 px-3 bg-[#161B22] border border-[rgba(255,255,255,0.1)] rounded text-[#8B949E] hover:text-white hover:bg-white/5 transition-colors flex items-center gap-2">
+          <div className="h-6 w-px bg-border mx-1"></div>
+          <button className="h-9 px-3  rounded text-foreground hover:text-foreground hover:bg-accent transition-colors flex items-center gap-2 bg-muted-foreground/20 shadow-sm shadow-black/30 ring-1 ring-accent-foreground/10">
             <span className="text-xs font-medium">Filter: All Risks</span>
             <ChevronDown className="w-3 h-3" />
           </button>
         </div>
 
         {/* Legend */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-3 border-t border-[rgba(255,255,255,0.1)]">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-3 border-t border-border">
           <div className="flex items-center gap-2">
             <span className="w-3 h-3 rounded-full bg-[#D32F2F] glow-critical"></span>
-            <span className="text-xs text-[#8B949E]">Kingpin (Critical)</span>
+            <span className="text-xs text-muted-foreground">Kingpin (Critical)</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="w-3 h-3 rounded-full bg-[#F57C00]"></span>
-            <span className="text-xs text-[#8B949E]">Coordinator (High)</span>
+            <span className="text-xs text-muted-foreground">Coordinator (High)</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="w-3 h-3 rounded-full bg-[#388E3C]"></span>
-            <span className="text-xs text-[#8B949E]">Mule (Low)</span>
+            <span className="text-xs text-muted-foreground">Mule (Low)</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-8 h-1 bg-[#6E7681] rounded-full"></div>
-            <span className="text-xs text-[#8B949E]">Freq. Calls (&gt;15)</span>
+            <div className="w-8 h-1 bg-border rounded-full"></div>
+            <span className="text-xs text-muted-foreground">Freq. Calls (&gt;15)</span>
           </div>
         </div>
       </div>
-    </div>
+      </div>
+      <div id="network-tooltip" className="d3-tooltip" />
+    </>
   );
 }

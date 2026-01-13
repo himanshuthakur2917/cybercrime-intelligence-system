@@ -3,6 +3,23 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* D3 Tooltip Styles */
+.d3-tooltip {
+  position: fixed;
+  pointer-events: none;
+  background: var(--card);
+  color: var(--card-foreground);
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  font-size: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  z-index: 1000;
+  white-space: nowrap;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
