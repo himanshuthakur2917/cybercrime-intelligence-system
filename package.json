@@ -1,0 +1,13 @@
+{
+  "name": "cybercrime-intelligence-system",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "turbo run dev"
+  },
+  "author": "Himanshu Thakur",
+  "license": "ISC",
+  "packageManager": "pnpm@10.28.0",
+  "devDependencies": {
+    "turbo": "^2.7.4"
+  }
+}

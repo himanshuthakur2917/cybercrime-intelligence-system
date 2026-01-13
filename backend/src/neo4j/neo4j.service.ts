@@ -7,11 +7,8 @@ export class Neo4jService implements OnModuleInit, OnModuleDestroy {
 
   async onModuleInit() {
     this.driver = neo4j.driver(
-      process.env.NEO4J_URI!,
-      neo4j.auth.basic(
-        process.env.NEO4J_USERNAME!,
-        process.env.NEO4J_PASSWORD!,
-      ),
+      process.env.NEO4J_URI,
+      neo4j.auth.basic(process.env.NEO4J_USERNAME, process.env.NEO4J_PASSWORD),
     );
 
     try {
