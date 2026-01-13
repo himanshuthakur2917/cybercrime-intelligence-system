@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Search } from "lucide-react";
 import { suspects } from "@/data/mockData";
-import KingpinsTable from "@/components/admin/kingpins/kingpins-table";
+import KingpinsTable from "@/components/dashboard/kingpins/kingpins-table";
 import { Input } from "@/components/ui/input";
 import {
   Select,
