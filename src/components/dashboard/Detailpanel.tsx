@@ -13,6 +13,7 @@ import {
     Check,
     X,
 } from "lucide-react";
+import { Button } from "../ui/button";
 
 interface DetailPanelProps {
   suspectId: string | null;
@@ -53,12 +54,12 @@ export default function DetailPanel({
             <span>{suspect.phone}</span>
           </div>
         </div>
-        <button
+        <Button
           onClick={onClose}
           className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-[#8B949E] hover:text-white transition-colors"
         >
           <X className="w-4 h-4" />
-        </button>
+        </Button>
       </div>
 
       {/* Scrollable Content */}
