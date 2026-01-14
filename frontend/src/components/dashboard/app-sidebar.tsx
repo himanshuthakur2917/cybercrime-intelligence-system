@@ -38,7 +38,7 @@ export const sidebarData = {
     email: "m@example.com",
     avatar: "/avatars/shadcn.jpg",
   },
-  adminNav:[
+  adminNav: [
     {
       title: "Overview",
       url: "/admin",
@@ -75,6 +75,21 @@ export const sidebarData = {
       title: "Analytics",
       url: "/dashboard/analytics",
       icon: IconChartBar,
+    },
+    {
+      title: "Geolocation Map",
+      url: "/dashboard/map",
+      icon: IconSearch,
+    },
+    {
+      title: "Pattern Analysis",
+      url: "/dashboard/patterns",
+      icon: IconTopologyRing,
+    },
+    {
+      title: "Suspect Tracking",
+      url: "/dashboard/tracking",
+      icon: IconUsers,
     },
     {
       title: "Kingpins Leaderboard",
@@ -121,7 +136,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     } else {
       setNavItems(sidebarData.navMain);
     }
-  },[pathname])
+  }, [pathname]);
 
   return (
     <Sidebar collapsible="offcanvas" {...props}>
