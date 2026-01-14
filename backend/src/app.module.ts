@@ -6,9 +6,17 @@ import { ConfigModule } from '@nestjs/config';
 import { InvestigationsModule } from './investigations/investigations.module';
 import { GeolocationModule } from './geolocation/geolocation.module';
 import { VictimMappingModule } from './victim-mapping/victim-mapping.module';
+import { LoggerModule } from './common/logger/logger.module';
 
 @Module({
-  imports: [ConfigModule.forRoot(), Neo4jModule, InvestigationsModule, GeolocationModule, VictimMappingModule],
+  imports: [
+    ConfigModule.forRoot(),
+    LoggerModule,
+    Neo4jModule,
+    InvestigationsModule,
+    GeolocationModule,
+    VictimMappingModule,
+  ],
   controllers: [AppController],
   providers: [AppService],
 })
