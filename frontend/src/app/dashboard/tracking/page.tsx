@@ -8,68 +8,7 @@ import {
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 
-// Mock suspects for dropdown
-const mockSuspects = [
-  { id: "S1", name: "Rajesh Kumar", phone: "+91 98765 43210" },
-  { id: "S2", name: "Amit Singh", phone: "+91 98765 43211" },
-  { id: "S3", name: "Priya Sharma", phone: "+91 98765 43212" },
-  { id: "S4", name: "Vikram Patel", phone: "+91 76543 21098" },
-];
-
-// Mock trajectory data
-const mockTrajectory = [
-  {
-    call_id: "CALL_001",
-    timestamp: "2025-02-10 09:15:00",
-    position: { latitude: 28.6139, longitude: 77.209, accuracy_m: 250 },
-    tower_id: "DL001",
-    tower_location: "Connaught Place, Delhi",
-    receiver_phone: "+91 76543 21098",
-    duration_seconds: 720,
-  },
-  {
-    call_id: "CALL_002",
-    timestamp: "2025-02-10 11:30:00",
-    position: { latitude: 28.59, longitude: 77.18, accuracy_m: 300 },
-    tower_id: "DL002",
-    tower_location: "South Delhi",
-    receiver_phone: "+91 76543 21098",
-    duration_seconds: 450,
-  },
-  {
-    call_id: "CALL_003",
-    timestamp: "2025-02-10 14:45:00",
-    position: { latitude: 28.57, longitude: 77.32, accuracy_m: 400 },
-    tower_id: "DL003",
-    tower_location: "Noida Sector 18",
-    receiver_phone: "+91 98765 12345",
-    duration_seconds: 300,
-  },
-  {
-    call_id: "CALL_004",
-    timestamp: "2025-02-11 10:00:00",
-    position: { latitude: 28.65, longitude: 77.23, accuracy_m: 200 },
-    tower_id: "DL004",
-    tower_location: "North Delhi",
-    receiver_phone: "+91 76543 21098",
-    duration_seconds: 600,
-  },
-];
-
-const mockPrediction = {
-  suspect_id: "S1",
-  suspect_name: "Rajesh Kumar",
-  suspect_phone: "+91 98765 43210",
-  last_known_position: {
-    latitude: 28.65,
-    longitude: 77.23,
-    timestamp: "2025-02-11 10:00:00",
-    accuracy_m: 200,
-  },
-  movement_pattern: ["Connaught Place", "South Delhi", "Noida", "North Delhi"],
-  predicted_location: "North Delhi",
-  confidence_level: "HIGH",
-};
+// Mock data removed in favor of API
 
 export default function TrackingPage() {
   const [suspects, setSuspects] = useState<any[]>([]);
