@@ -5,42 +5,40 @@ import {
   IconAlertTriangle,
   IconPhone,
   IconUsers,
-  IconMapPin,
+  IconShield,
 } from "@tabler/icons-react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 
-const getSeverityColor = (severity: string) => {
-  switch (severity) {
+const getRiskColor = (risk: string) => {
+  switch (risk) {
     case "CRITICAL":
-      return "border-destructive bg-destructive/5";
+      return "bg-red-500 text-white";
     case "HIGH":
-      return "border-destructive/60 bg-destructive/5";
+      return "bg-orange-500 text-white";
     case "MEDIUM":
-      return "border-secondary bg-secondary/10";
+      return "bg-yellow-500 text-black";
     default:
-      return "border-muted bg-muted/10";
+      return "bg-gray-500 text-white";
   }
 };
 
-const getSeverityBadge = (severity: string) => {
-  switch (severity) {
+const getRiskBorder = (risk: string) => {
+  switch (risk) {
     case "CRITICAL":
-      return "bg-destructive text-destructive-foreground";
+      return "border-l-red-500";
     case "HIGH":
-      return "bg-destructive/80 text-white";
+      return "border-l-orange-500";
     case "MEDIUM":
-      return "bg-secondary text-secondary-foreground";
+      return "border-l-yellow-500";
     default:
-      return "bg-muted text-muted-foreground";
+      return "border-l-gray-500";
   }
 };
 
 export default function PatternsPage() {
-  const [data, setData] = useState<{
-    patterns: any[];
-    relationships: any[];
-  }>({ patterns: [], relationships: [] });
+  const [patterns, setPatterns] = useState<any[]>([]);
+  const [relationships, setRelationships] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -51,10 +49,8 @@ export default function PatternsPage() {
           api.getVictimMapping("default"),
         ]);
 
-        setData({
-          patterns: patternsData.harassmentPatterns || [],
-          relationships: mappingData.relationships || [],
-        });
+        setPatterns(patternsData.harassmentPatterns || []);
+        setRelationships(mappingData.relationships || []);
       } catch (err) {
         console.error("Failed to fetch patterns", err);
         toast.error("Failed to load pattern analysis.");
@@ -68,190 +64,190 @@ export default function PatternsPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-[calc(100vh-100px)]">
-        <div className="flex flex-col items-center gap-2">
-          <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
-          <p className="text-muted-foreground">Analyzing Call Patterns...</p>
+        <div className="flex flex-col items-center gap-3">
+          <div className="animate-spin h-10 w-10 border-4 border-primary border-t-transparent rounded-full"></div>
+          <p className="text-muted-foreground">Analyzing patterns...</p>
         </div>
       </div>
     );
   }
 
-  // Calculate stats
-  const totalCalls = data.relationships.reduce(
-    (acc, r) => acc + r.call_count,
+  // Stats
+  const totalCalls = relationships.reduce(
+    (acc, r) => acc + (r.call_count || 0),
     0
   );
-  const uniqueVictims = new Set(data.relationships.map((r) => r.victim_id))
-    .size;
-  // const proximityCalls = data.relationships.reduce((acc, r) => acc + (r.proximity_count || 0), 0); // Need this field in backend
-  const highRisk = data.patterns.length; // Approximate
+  const uniqueVictims = new Set(relationships.map((r) => r.victim_id)).size;
+  const criticalPatterns = patterns.filter(
+    (p) =>
+      p.harassment_severity === "CRITICAL" || p.harassment_severity === "HIGH"
+  ).length;
 
   return (
-    <div className="flex flex-col gap-6 p-6">
+    <div className="p-6 space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold">🔍 Pattern Analysis</h1>
-        <p className="text-muted-foreground">
-          Detected harassment patterns and caller-victim relationships
+        <h1 className="text-2xl font-bold flex items-center gap-2">
+          <IconShield className="h-7 w-7 text-primary" />
+          Pattern Analysis
+        </h1>
+        <p className="text-muted-foreground mt-1">
+          Harassment patterns detected from call data
         </p>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="p-4 rounded-xl bg-card border shadow-sm flex items-center gap-4">
-          <div className="p-3 rounded-full bg-primary/10">
-            <IconPhone className="h-6 w-6 text-primary" />
+      {/* Stats Row */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="bg-card border rounded-xl p-4 flex items-center gap-3">
+          <div className="p-2 rounded-lg bg-blue-500/10">
+            <IconPhone className="h-5 w-5 text-blue-500" />
           </div>
           <div>
-            <div className="text-2xl font-bold">{totalCalls}</div>
-            <div className="text-sm text-muted-foreground">Total Calls</div>
+            <div className="text-xl font-bold">{totalCalls}</div>
+            <div className="text-xs text-muted-foreground">Total Calls</div>
           </div>
         </div>
-        <div className="p-4 rounded-xl bg-card border shadow-sm flex items-center gap-4">
-          <div className="p-3 rounded-full bg-secondary">
-            <IconUsers className="h-6 w-6 text-foreground" />
+        <div className="bg-card border rounded-xl p-4 flex items-center gap-3">
+          <div className="p-2 rounded-lg bg-purple-500/10">
+            <IconUsers className="h-5 w-5 text-purple-500" />
           </div>
           <div>
-            <div className="text-2xl font-bold">{uniqueVictims}</div>
-            <div className="text-sm text-muted-foreground">Unique Victims</div>
+            <div className="text-xl font-bold">{uniqueVictims}</div>
+            <div className="text-xs text-muted-foreground">Victims</div>
           </div>
         </div>
-        <div className="p-4 rounded-xl bg-card border shadow-sm flex items-center gap-4">
-          <div className="p-3 rounded-full bg-muted">
-            <IconMapPin className="h-6 w-6 text-muted-foreground" />
+        <div className="bg-card border rounded-xl p-4 flex items-center gap-3">
+          <div className="p-2 rounded-lg bg-orange-500/10">
+            <IconAlertTriangle className="h-5 w-5 text-orange-500" />
           </div>
           <div>
-            <div className="text-2xl font-bold">-</div>
-            <div className="text-sm text-muted-foreground">Proximity Calls</div>
+            <div className="text-xl font-bold">{patterns.length}</div>
+            <div className="text-xs text-muted-foreground">Patterns</div>
           </div>
         </div>
-        <div className="p-4 rounded-xl bg-card border shadow-sm flex items-center gap-4">
-          <div className="p-3 rounded-full bg-destructive/10">
-            <IconAlertTriangle className="h-6 w-6 text-destructive" />
+        <div className="bg-card border rounded-xl p-4 flex items-center gap-3">
+          <div className="p-2 rounded-lg bg-red-500/10">
+            <IconAlertTriangle className="h-5 w-5 text-red-500" />
           </div>
           <div>
-            <div className="text-2xl font-bold">{highRisk}</div>
-            <div className="text-sm text-muted-foreground">
-              High Risk Patterns
-            </div>
+            <div className="text-xl font-bold">{criticalPatterns}</div>
+            <div className="text-xs text-muted-foreground">High Risk</div>
           </div>
         </div>
       </div>
 
-      {/* Harassment Patterns */}
+      {/* Patterns List */}
       <div>
-        <h2 className="text-xl font-semibold mb-4">
-          🚨 Detected Harassment Patterns
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {data.patterns.map((pattern: any) => (
-            <div
-              key={`${pattern.caller_id}-${pattern.victim_id}`}
-              className={`p-4 rounded-lg border-l-4 ${getSeverityColor(
-                pattern.harassment_severity
-              )}`}
-            >
-              <div className="flex justify-between items-start mb-3">
-                <div>
-                  <h3 className="font-semibold">
-                    {pattern.caller_name} → {pattern.victim_name}
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    Evidence: {pattern.evidence_count} proximity calls
-                  </p>
+        <h2 className="text-lg font-semibold mb-3">Detected Patterns</h2>
+        {patterns.length === 0 ? (
+          <div className="bg-card border rounded-xl p-8 text-center">
+            <IconShield className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+            <p className="text-muted-foreground">
+              No harassment patterns detected.
+            </p>
+          </div>
+        ) : (
+          <div className="grid gap-3">
+            {patterns.slice(0, 20).map((p: any, idx: number) => (
+              <div
+                key={`${p.caller_id}-${p.victim_id}-${idx}`}
+                className={`bg-card border border-l-4 ${getRiskBorder(
+                  p.harassment_severity
+                )} rounded-lg p-4 flex items-center justify-between`}
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="font-medium truncate">
+                      {p.caller_name || "Unknown"}
+                    </span>
+                    <span className="text-muted-foreground">→</span>
+                    <span className="font-medium truncate">
+                      {p.victim_name || "Unknown"}
+                    </span>
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    {p.evidence_count || 0} calls detected
+                  </div>
                 </div>
                 <span
-                  className={`px-2 py-1 rounded text-xs font-bold ${getSeverityBadge(
-                    pattern.harassment_severity
+                  className={`px-2 py-1 rounded text-xs font-bold ${getRiskColor(
+                    p.harassment_severity
                   )}`}
                 >
-                  {pattern.harassment_severity}
+                  {p.harassment_severity || "UNKNOWN"}
                 </span>
               </div>
-              <div className="text-sm space-y-1">
-                <p>
-                  <strong>Caller:</strong> {pattern.caller_phone}
-                </p>
-                <p>
-                  <strong>Victim:</strong> {pattern.victim_phone}
-                </p>
-                <p>
-                  <strong>Action:</strong>{" "}
-                  {pattern.recommended_action.replace(/_/g, " ")}
-                </p>
-              </div>
-              <div className="flex gap-2 mt-3">
-                <button className="flex-1 px-3 py-1.5 bg-secondary text-secondary-foreground text-sm font-medium rounded hover:bg-secondary/80">
-                  👁️ View
-                </button>
-                <button className="flex-1 px-3 py-1.5 bg-destructive text-destructive-foreground text-sm font-medium rounded hover:bg-destructive/90">
-                  ⚠️ Escalate
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+            {patterns.length > 20 && (
+              <p className="text-sm text-muted-foreground text-center py-2">
+                +{patterns.length - 20} more patterns
+              </p>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* Caller-Victim Relationships Table */}
+      {/* Relationships Table */}
       <div>
-        <h2 className="text-xl font-semibold mb-4">
-          🔗 Caller-Victim Relationships
-        </h2>
-        <div className="rounded-lg border overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50">
-              <tr>
-                <th className="px-4 py-3 text-left font-medium">Caller</th>
-                <th className="px-4 py-3 text-left font-medium">Victim</th>
-                <th className="px-4 py-3 text-left font-medium">Call Count</th>
-                <th className="px-4 py-3 text-left font-medium">Duration</th>
-                <th className="px-4 py-3 text-left font-medium">Pattern</th>
-                <th className="px-4 py-3 text-left font-medium">Risk</th>
-                <th className="px-4 py-3 text-left font-medium">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.relationships.map((rel: any, idx: number) => (
-                <tr key={idx} className="border-t hover:bg-muted/30">
-                  <td className="px-4 py-3">
-                    <div className="font-medium">{rel.caller_name}</div>
-                    <div className="text-muted-foreground text-xs">
-                      {rel.caller_phone}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="font-medium">{rel.victim_name}</div>
-                    <div className="text-muted-foreground text-xs">
-                      {rel.victim_phone}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 font-bold">{rel.call_count}</td>
-                  <td className="px-4 py-3">{rel.total_duration}</td>
-                  <td className="px-4 py-3">
-                    <span className="px-2 py-1 rounded bg-blue-500/10 text-blue-700 text-xs">
-                      {rel.pattern_type}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`px-2 py-1 rounded text-xs font-bold ${getSeverityBadge(
-                        rel.risk_level
-                      )}`}
-                    >
-                      {rel.risk_level}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <button className="px-2 py-1 text-xs bg-secondary rounded hover:bg-secondary/80">
-                      View Details
-                    </button>
-                  </td>
+        <h2 className="text-lg font-semibold mb-3">Caller-Victim Links</h2>
+        {relationships.length === 0 ? (
+          <div className="bg-card border rounded-xl p-8 text-center">
+            <IconUsers className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+            <p className="text-muted-foreground">No relationships found.</p>
+          </div>
+        ) : (
+          <div className="bg-card border rounded-xl overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/50">
+                <tr>
+                  <th className="px-4 py-3 text-left font-medium">Caller</th>
+                  <th className="px-4 py-3 text-left font-medium">Victim</th>
+                  <th className="px-4 py-3 text-left font-medium">Calls</th>
+                  <th className="px-4 py-3 text-left font-medium">Risk</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {relationships.slice(0, 15).map((rel: any, idx: number) => (
+                  <tr key={idx} className="border-t hover:bg-muted/20">
+                    <td className="px-4 py-3">
+                      <div className="font-medium">
+                        {rel.caller_name || "Unknown"}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {rel.caller_phone}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="font-medium">
+                        {rel.victim_name || "Unknown"}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {rel.victim_phone}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 font-bold">
+                      {rel.call_count || 0}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={`px-2 py-1 rounded text-xs font-bold ${getRiskColor(
+                          rel.risk_level
+                        )}`}
+                      >
+                        {rel.risk_level || "LOW"}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {relationships.length > 15 && (
+              <div className="px-4 py-2 text-sm text-muted-foreground text-center border-t">
+                Showing 15 of {relationships.length} relationships
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
