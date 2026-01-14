@@ -15,7 +15,10 @@ interface UploadedFile {
   status: "pending" | "uploading" | "success" | "error";
   rowCount?: number;
   error?: string;
+  originalFile: File;
 }
+
+import { api } from "@/lib/api";
 
 interface CsvUploaderProps {
   investigationId: string;
@@ -107,6 +110,7 @@ export function CsvUploader({
         type,
         status: "pending",
         rowCount: lines.length - 1,
+        originalFile: file,
       });
     }
 
@@ -147,13 +151,30 @@ export function CsvUploader({
       )
     );
 
-    // Simulate upload (replace with actual API call)
     try {
-      // In real implementation, you would:
-      // 1. Read file contents
-      // 2. Parse CSV
-      // 3. POST to /investigations/${investigationId}/upload
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      // 1. Parse all files
+      const payload: Record<string, any[]> = {};
+
+      for (const file of files) {
+        if (file.status !== "pending" && file.status !== "error") continue; // Skip already uploaded if any? Actually re-uploading everything for now
+
+        const text = await file.originalFile.text();
+        const data = parseCSV(text);
+
+        // Map frontend types to backend expected keys
+        // Assuming backend expects: suspects, calls, transactions, cdrRecords, victims, cellTowers
+        // We'll map based on file.type
+        let key = file.type as string;
+        if (file.type === "cdr") key = "cdrRecords";
+        if (file.type === "towers") key = "cellTowers";
+
+        // Accumulate if multiple files of same type (though usually one)
+        payload[key] = payload[key] ? [...payload[key], ...data] : data;
+      }
+
+      // 2. Send to Backend
+      // "default" is hardcoded investigation ID for this prototype
+      await api.upload("default", payload);
 
       setFiles((prev) =>
         prev.map((f) =>
@@ -163,6 +184,7 @@ export function CsvUploader({
 
       onUploadComplete?.();
     } catch (error) {
+      console.error("Upload failed:", error);
       setFiles((prev) =>
         prev.map((f) =>
           f.status === "uploading"
@@ -270,6 +292,7 @@ export function CsvUploader({
                     <button
                       onClick={() => removeFile(idx)}
                       className="p-1 hover:bg-muted rounded"
+                      title="Remove file"
                       aria-label="Remove file"
                     >
                       <IconX className="h-4 w-4" />
