@@ -1,6 +1,42 @@
 import { Injectable } from '@nestjs/common';
 import { Neo4jService } from 'src/neo4j/neo4j.service';
 import { LoggerService } from 'src/common/logger/logger.service';
+import { Integer } from 'neo4j-driver';
+
+/**
+ * Helper to convert Neo4j Integer objects to regular JavaScript numbers
+ * Neo4j returns large integers as {low, high} objects
+ */
+function toNumber(value: any): number {
+  if (value === null || value === undefined) return 0;
+  if (Integer.isInteger(value)) return value.toNumber();
+  if (typeof value === 'object' && 'low' in value && 'high' in value) {
+    return Integer.fromValue(value).toNumber();
+  }
+  return Number(value) || 0;
+}
+
+/**
+ * Helper to recursively convert all Neo4j Integers in an object
+ */
+function convertNeo4jIntegers(obj: any): any {
+  if (obj === null || obj === undefined) return obj;
+  if (Integer.isInteger(obj)) return obj.toNumber();
+  if (typeof obj === 'object' && 'low' in obj && 'high' in obj) {
+    return Integer.fromValue(obj).toNumber();
+  }
+  if (Array.isArray(obj)) {
+    return obj.map(convertNeo4jIntegers);
+  }
+  if (typeof obj === 'object') {
+    const result: any = {};
+    for (const key in obj) {
+      result[key] = convertNeo4jIntegers(obj[key]);
+    }
+    return result;
+  }
+  return obj;
+}
 
 export interface VictimRelationship {
   victim_id: string;
@@ -128,7 +164,8 @@ export class VictimMappingService {
         invId: investigationId,
       });
       const relationships = records.map(
-        (r) => r.get('relationship') as VictimRelationship,
+        (r) =>
+          convertNeo4jIntegers(r.get('relationship')) as VictimRelationship,
       );
       this.logger.success(
         `Found ${relationships.length} victim relationships`,

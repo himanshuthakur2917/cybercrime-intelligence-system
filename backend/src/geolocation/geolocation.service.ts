@@ -1,7 +1,29 @@
 import { Injectable } from '@nestjs/common';
 import { Neo4jService } from 'src/neo4j/neo4j.service';
 import { LoggerService } from 'src/common/logger/logger.service';
+import { Integer } from 'neo4j-driver';
 
+/**
+ * Helper to recursively convert all Neo4j Integers in an object to regular JS numbers
+ */
+function convertNeo4jIntegers(obj: any): any {
+  if (obj === null || obj === undefined) return obj;
+  if (Integer.isInteger(obj)) return obj.toNumber();
+  if (typeof obj === 'object' && 'low' in obj && 'high' in obj) {
+    return Integer.fromValue(obj).toNumber();
+  }
+  if (Array.isArray(obj)) {
+    return obj.map(convertNeo4jIntegers);
+  }
+  if (typeof obj === 'object') {
+    const result: any = {};
+    for (const key in obj) {
+      result[key] = convertNeo4jIntegers(obj[key]);
+    }
+    return result;
+  }
+  return obj;
+}
 export interface DistanceCluster {
   caller_id: string;
   caller_name: string;
@@ -109,7 +131,9 @@ export class GeolocationService {
       const records = await this.neo4jService.readCypher(query, {
         invId: investigationId,
       });
-      const clusters = records.map((r) => r.get('cluster') as DistanceCluster);
+      const clusters = records.map(
+        (r) => convertNeo4jIntegers(r.get('cluster')) as DistanceCluster,
+      );
       this.logger.success(
         `Found ${clusters.length} distance-based clusters`,
         'GeolocationService',
@@ -191,7 +215,9 @@ export class GeolocationService {
         );
         return null;
       }
-      const prediction = records[0].get('prediction') as LocationPrediction;
+      const prediction = convertNeo4jIntegers(
+        records[0].get('prediction'),
+      ) as LocationPrediction;
       this.logger.success(
         `Location predicted with ${prediction.confidence_level} confidence`,
         'GeolocationService',
