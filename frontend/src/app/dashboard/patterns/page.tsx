@@ -1,12 +1,14 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   IconAlertTriangle,
   IconPhone,
   IconUsers,
   IconMapPin,
 } from "@tabler/icons-react";
+import { api } from "@/lib/api";
+import { toast } from "sonner";
 
 // Mock harassment patterns data
 const mockPatterns = [
@@ -81,30 +83,79 @@ const mockRelationships = [
 const getSeverityColor = (severity: string) => {
   switch (severity) {
     case "CRITICAL":
-      return "bg-red-500/10 border-red-500/50 text-red-700";
+      return "border-destructive bg-destructive/5";
     case "HIGH":
-      return "bg-orange-500/10 border-orange-500/50 text-orange-700";
+      return "border-destructive/60 bg-destructive/5";
     case "MEDIUM":
-      return "bg-yellow-500/10 border-yellow-500/50 text-yellow-700";
+      return "border-secondary bg-secondary/10";
     default:
-      return "bg-green-500/10 border-green-500/50 text-green-700";
+      return "border-muted bg-muted/10";
   }
 };
 
 const getSeverityBadge = (severity: string) => {
   switch (severity) {
     case "CRITICAL":
-      return "bg-red-600 text-white";
+      return "bg-destructive text-destructive-foreground";
     case "HIGH":
-      return "bg-orange-500 text-white";
+      return "bg-destructive/80 text-white";
     case "MEDIUM":
-      return "bg-yellow-500 text-black";
+      return "bg-secondary text-secondary-foreground";
     default:
-      return "bg-green-500 text-white";
+      return "bg-muted text-muted-foreground";
   }
 };
 
 export default function PatternsPage() {
+  const [data, setData] = useState<{
+    patterns: any[];
+    relationships: any[];
+  }>({ patterns: [], relationships: [] });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [patternsData, mappingData] = await Promise.all([
+          api.getPatterns("default"),
+          api.getVictimMapping("default"),
+        ]);
+
+        setData({
+          patterns: patternsData.harassmentPatterns || [],
+          relationships: mappingData.relationships || [],
+        });
+      } catch (err) {
+        console.error("Failed to fetch patterns", err);
+        toast.error("Failed to load pattern analysis.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-[calc(100vh-100px)]">
+        <div className="flex flex-col items-center gap-2">
+          <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
+          <p className="text-muted-foreground">Analyzing Call Patterns...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Calculate stats
+  const totalCalls = data.relationships.reduce(
+    (acc, r) => acc + r.call_count,
+    0
+  );
+  const uniqueVictims = new Set(data.relationships.map((r) => r.victim_id))
+    .size;
+  // const proximityCalls = data.relationships.reduce((acc, r) => acc + (r.proximity_count || 0), 0); // Need this field in backend
+  const highRisk = data.patterns.length; // Approximate
+
   return (
     <div className="flex flex-col gap-6 p-6">
       {/* Header */}
@@ -117,39 +168,39 @@ export default function PatternsPage() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="p-4 rounded-lg bg-card border flex items-center gap-4">
-          <div className="p-3 rounded-full bg-blue-500/10">
-            <IconPhone className="h-6 w-6 text-blue-600" />
+        <div className="p-4 rounded-xl bg-card border shadow-sm flex items-center gap-4">
+          <div className="p-3 rounded-full bg-primary/10">
+            <IconPhone className="h-6 w-6 text-primary" />
           </div>
           <div>
-            <div className="text-2xl font-bold">134</div>
+            <div className="text-2xl font-bold">{totalCalls}</div>
             <div className="text-sm text-muted-foreground">Total Calls</div>
           </div>
         </div>
-        <div className="p-4 rounded-lg bg-card border flex items-center gap-4">
-          <div className="p-3 rounded-full bg-purple-500/10">
-            <IconUsers className="h-6 w-6 text-purple-600" />
+        <div className="p-4 rounded-xl bg-card border shadow-sm flex items-center gap-4">
+          <div className="p-3 rounded-full bg-secondary">
+            <IconUsers className="h-6 w-6 text-foreground" />
           </div>
           <div>
-            <div className="text-2xl font-bold">23</div>
+            <div className="text-2xl font-bold">{uniqueVictims}</div>
             <div className="text-sm text-muted-foreground">Unique Victims</div>
           </div>
         </div>
-        <div className="p-4 rounded-lg bg-card border flex items-center gap-4">
-          <div className="p-3 rounded-full bg-orange-500/10">
-            <IconMapPin className="h-6 w-6 text-orange-600" />
+        <div className="p-4 rounded-xl bg-card border shadow-sm flex items-center gap-4">
+          <div className="p-3 rounded-full bg-muted">
+            <IconMapPin className="h-6 w-6 text-muted-foreground" />
           </div>
           <div>
-            <div className="text-2xl font-bold">45</div>
+            <div className="text-2xl font-bold">-</div>
             <div className="text-sm text-muted-foreground">Proximity Calls</div>
           </div>
         </div>
-        <div className="p-4 rounded-lg bg-card border flex items-center gap-4">
-          <div className="p-3 rounded-full bg-red-500/10">
-            <IconAlertTriangle className="h-6 w-6 text-red-600" />
+        <div className="p-4 rounded-xl bg-card border shadow-sm flex items-center gap-4">
+          <div className="p-3 rounded-full bg-destructive/10">
+            <IconAlertTriangle className="h-6 w-6 text-destructive" />
           </div>
           <div>
-            <div className="text-2xl font-bold">12</div>
+            <div className="text-2xl font-bold">{highRisk}</div>
             <div className="text-sm text-muted-foreground">
               High Risk Patterns
             </div>
@@ -163,7 +214,7 @@ export default function PatternsPage() {
           🚨 Detected Harassment Patterns
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {mockPatterns.map((pattern) => (
+          {data.patterns.map((pattern: any) => (
             <div
               key={`${pattern.caller_id}-${pattern.victim_id}`}
               className={`p-4 rounded-lg border-l-4 ${getSeverityColor(
@@ -200,10 +251,10 @@ export default function PatternsPage() {
                 </p>
               </div>
               <div className="flex gap-2 mt-3">
-                <button className="flex-1 px-3 py-1.5 bg-blue-600 text-white text-sm rounded hover:bg-blue-700">
+                <button className="flex-1 px-3 py-1.5 bg-secondary text-secondary-foreground text-sm font-medium rounded hover:bg-secondary/80">
                   👁️ View
                 </button>
-                <button className="flex-1 px-3 py-1.5 bg-orange-600 text-white text-sm rounded hover:bg-orange-700">
+                <button className="flex-1 px-3 py-1.5 bg-destructive text-destructive-foreground text-sm font-medium rounded hover:bg-destructive/90">
                   ⚠️ Escalate
                 </button>
               </div>
@@ -231,7 +282,7 @@ export default function PatternsPage() {
               </tr>
             </thead>
             <tbody>
-              {mockRelationships.map((rel, idx) => (
+              {data.relationships.map((rel: any, idx: number) => (
                 <tr key={idx} className="border-t hover:bg-muted/30">
                   <td className="px-4 py-3">
                     <div className="font-medium">{rel.caller_name}</div>

@@ -1,7 +1,10 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
+import { api } from "@/lib/api";
+import { toast } from "sonner";
+import { IconUser, IconMapPin, IconAccessPoint } from "@tabler/icons-react";
 
 // Dynamically import the map component to avoid SSR issues with Leaflet
 const GeolocationMap = dynamic(
@@ -16,144 +19,115 @@ const GeolocationMap = dynamic(
   }
 );
 
-// Mock data for demonstration - replace with API calls
-const mockMarkers = [
-  {
-    call_id: "CALL_001",
-    caller: { id: "S1", name: "Rajesh Kumar", phone: "+91 98765 43210" },
-    receiver: { id: "S4", name: "Vikram Patel", phone: "+91 76543 21098" },
-    caller_position: { lat: 28.6139, lon: 77.209, accuracy_m: 300 },
-    receiver_position: { lat: 28.65, lon: 77.23 },
-    tower: { id: "DL001", location: "Connaught Place, Delhi" },
-    proximity_pattern: "NEAR",
-    distance_km: 4.5,
-    call_duration: 720,
-    call_time: "2025-02-10 09:15:00",
-    risk_level: "HIGH",
-  },
-  {
-    call_id: "CALL_002",
-    caller: { id: "S2", name: "Amit Singh", phone: "+91 98765 43211" },
-    receiver: { id: "S4", name: "Vikram Patel", phone: "+91 76543 21098" },
-    caller_position: { lat: 28.59, lon: 77.18, accuracy_m: 250 },
-    receiver_position: { lat: 28.65, lon: 77.23 },
-    tower: { id: "DL002", location: "South Delhi" },
-    proximity_pattern: "MEDIUM",
-    distance_km: 8.2,
-    call_duration: 450,
-    call_time: "2025-02-11 14:30:00",
-    risk_level: "MEDIUM",
-  },
-];
-
-const mockTowers = [
-  {
-    tower_id: "DL001",
-    location: "Connaught Place, Delhi",
-    latitude: 28.6328,
-    longitude: 77.2197,
-  },
-  {
-    tower_id: "DL002",
-    location: "South Delhi",
-    latitude: 28.5494,
-    longitude: 77.2001,
-  },
-  {
-    tower_id: "DL003",
-    location: "Noida Sector 18",
-    latitude: 28.5706,
-    longitude: 77.3218,
-  },
-];
-
-const mockConvergence = [
-  {
-    victim_id: "V001",
-    victim_name: "Sarah Johnson",
-    convergence_lat: 28.62,
-    convergence_lon: 77.215,
-    unique_callers: 4,
-    caller_names: ["Rajesh Kumar", "Amit Singh", "Priya Sharma", "Unknown"],
-    total_interactions: 87,
-    zone_severity: "CRITICAL" as const,
-  },
-];
-
 export default function MapPage() {
+  const [data, setData] = useState<{
+    markers: any[];
+    cellTowers: any[];
+    convergencePoints: any[];
+  }>({ markers: [], cellTowers: [], convergencePoints: [] });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [mapData, convergenceData] = await Promise.all([
+          api.getMapData("default"),
+          api.getVictimMapping("default"),
+        ]);
+
+        setData({
+          markers: mapData.markers || [],
+          cellTowers: mapData.cellTowers || [],
+          convergencePoints: convergenceData.convergencePoints || [],
+        });
+      } catch (err) {
+        console.error("Failed to fetch map data", err);
+        toast.error("Failed to load map data. Using cached view.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-[calc(100vh-100px)]">
+        <div className="flex flex-col items-center gap-2">
+          <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
+          <p className="text-muted-foreground">Loading Intelligence Map...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-6 p-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">🗺️ Geolocation Map</h1>
-          <p className="text-muted-foreground">
-            Real-time tracking with triangulation accuracy ±300m
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <button className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90">
-            📥 Export Data
-          </button>
-          <button className="px-4 py-2 bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/90">
-            🖨️ Print Report
-          </button>
-        </div>
+      <div>
+        <h1 className="text-2xl font-bold">🗺️ Geolocation Map</h1>
+        <p className="text-muted-foreground">
+          Real-time tracking with triangulation accuracy ±300m
+        </p>
       </div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="p-4 rounded-lg bg-red-500/10 border border-red-500/20">
-          <div className="text-2xl font-bold text-red-600">23</div>
-          <div className="text-sm text-muted-foreground">Critical Patterns</div>
+        <div className="p-4 rounded-xl bg-card border shadow-sm flex items-center gap-4">
+          <div className="p-3 rounded-full bg-primary/10">
+            <IconAccessPoint className="h-6 w-6 text-primary" />
+          </div>
+          <div>
+            <div className="text-2xl font-bold">{data.cellTowers.length}</div>
+            <div className="text-sm text-muted-foreground">Active Towers</div>
+          </div>
         </div>
-        <div className="p-4 rounded-lg bg-orange-500/10 border border-orange-500/20">
-          <div className="text-2xl font-bold text-orange-600">47</div>
-          <div className="text-sm text-muted-foreground">High Risk Calls</div>
+        <div className="p-4 rounded-xl bg-card border shadow-sm flex items-center gap-4">
+          <div className="p-3 rounded-full bg-secondary">
+            <IconUser className="h-6 w-6 text-foreground" />
+          </div>
+          <div>
+            <div className="text-2xl font-bold">{data.markers.length}</div>
+            <div className="text-sm text-muted-foreground">Active Calls</div>
+          </div>
         </div>
-        <div className="p-4 rounded-lg bg-blue-500/10 border border-blue-500/20">
-          <div className="text-2xl font-bold text-blue-600">134</div>
-          <div className="text-sm text-muted-foreground">Total Markers</div>
+        <div className="p-4 rounded-xl bg-card border shadow-sm flex items-center gap-4">
+          <div className="p-3 rounded-full bg-destructive/10">
+            <IconMapPin className="h-6 w-6 text-destructive" />
+          </div>
+          <div>
+            <div className="text-2xl font-bold">
+              {
+                data.convergencePoints.filter(
+                  (p: any) => p.zone_severity === "CRITICAL"
+                ).length
+              }
+            </div>
+            <div className="text-sm text-muted-foreground">Critical Zones</div>
+          </div>
         </div>
-        <div className="p-4 rounded-lg bg-green-500/10 border border-green-500/20">
-          <div className="text-2xl font-bold text-green-600">12</div>
-          <div className="text-sm text-muted-foreground">Convergence Zones</div>
+        <div className="p-4 rounded-xl bg-muted/40 border shadow-sm flex items-center gap-4">
+          <div className="w-full">
+            <div className="flex justify-between mb-2">
+              <span className="text-sm font-medium">Tracking Accuracy</span>
+              <span className="text-sm font-bold text-primary">85%</span>
+            </div>
+            <div className="w-full bg-muted rounded-full h-2">
+              <div
+                className="bg-primary h-2 rounded-full"
+                style={{ width: "85%" }}
+              ></div>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Legend */}
-      <div className="flex flex-wrap gap-4 text-sm">
-        <div className="flex items-center gap-2">
-          <span className="text-xl">📍</span>
-          <span>Caller Position</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-xl">📡</span>
-          <span>Cell Tower</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="w-4 h-1 bg-red-500 rounded"></span>
-          <span>Proximity Call (&lt;5km)</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="w-4 h-1 bg-orange-500 rounded"></span>
-          <span>Long Call (&gt;10min)</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="w-4 h-1 bg-green-500 rounded"></span>
-          <span>Normal Call</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-xl">🔴</span>
-          <span>Critical Zone</span>
-        </div>
-      </div>
-
-      {/* Map */}
+      {/* Map Component */}
       <GeolocationMap
-        markers={mockMarkers}
-        cellTowers={mockTowers}
-        convergencePoints={mockConvergence}
+        markers={data.markers}
+        cellTowers={data.cellTowers}
+        convergencePoints={data.convergencePoints}
         center={[28.6139, 77.209]}
         zoom={11}
       />
