@@ -131,16 +131,23 @@ export default function TrackingPage() {
             <div className="space-y-2 text-sm text-foreground/80">
               <p>
                 <strong className="text-foreground">Location:</strong>{" "}
-                {prediction.last_known_position.latitude.toFixed(4)}°N,{" "}
-                {prediction.last_known_position.longitude.toFixed(4)}°E
+                {prediction.last_known_position?.latitude?.toFixed?.(4) ??
+                  "N/A"}
+                °N,{" "}
+                {prediction.last_known_position?.longitude?.toFixed?.(4) ??
+                  "N/A"}
+                °E
               </p>
               <p>
                 <strong className="text-foreground">Accuracy:</strong> ±
-                {prediction.last_known_position.accuracy_m}m
+                {prediction.last_known_position?.accuracy_m ??
+                  prediction.last_known_position?.tower_id ??
+                  "N/A"}
+                m
               </p>
               <p>
                 <strong className="text-foreground">Timestamp:</strong>{" "}
-                {prediction.last_known_position.timestamp}
+                {prediction.last_known_position?.timestamp ?? "Unknown"}
               </p>
             </div>
           </div>
@@ -229,11 +236,11 @@ export default function TrackingPage() {
                         Coordinates
                       </p>
                       <p className="font-medium text-foreground">
-                        {point.position.latitude.toFixed(4)}°N,{" "}
-                        {point.position.longitude.toFixed(4)}°E
+                        {point.position?.latitude?.toFixed?.(4) ?? "N/A"}°N,{" "}
+                        {point.position?.longitude?.toFixed?.(4) ?? "N/A"}°E
                       </p>
                       <p className="text-xs text-muted-foreground/80">
-                        ±{point.position.accuracy_m}m accuracy
+                        Tower: {point.position?.tower_id ?? "N/A"}
                       </p>
                     </div>
                     <div>
