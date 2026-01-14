@@ -1,3 +1,4 @@
+"use client";
 import React, { useState, useEffect } from "react";
 import {
   IconMapPin,
@@ -17,19 +18,36 @@ export default function TrackingPage() {
   const [prediction, setPrediction] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  // Fetch suspects list on mount (derived from patterns/mappings for now)
+  // Fetch suspects list on mount (derived from victim relationships)
   useEffect(() => {
     const fetchSuspects = async () => {
       try {
         const data = await api.getVictimMapping("default");
         const uniqueSuspects = new Map();
 
-        data.relationships.forEach((rel: any) => {
-          if (!uniqueSuspects.has(rel.caller_id)) {
+        // Extract suspects from new victim relationships structure
+        data.relationships?.forEach((rel: any) => {
+          // Handle new structure with connected_suspects array
+          if (rel.connected_suspects && Array.isArray(rel.connected_suspects)) {
+            rel.connected_suspects.forEach((suspect: any) => {
+              if (
+                suspect.suspect_id &&
+                !uniqueSuspects.has(suspect.suspect_id)
+              ) {
+                uniqueSuspects.set(suspect.suspect_id, {
+                  id: suspect.suspect_id,
+                  name: suspect.suspect_name || "Unknown",
+                  phone: suspect.suspect_phone || "N/A",
+                });
+              }
+            });
+          }
+          // Fallback for old structure with caller_id
+          else if (rel.caller_id && !uniqueSuspects.has(rel.caller_id)) {
             uniqueSuspects.set(rel.caller_id, {
               id: rel.caller_id,
-              name: rel.caller_name,
-              phone: rel.caller_phone,
+              name: rel.caller_name || "Unknown",
+              phone: rel.caller_phone || "N/A",
             });
           }
         });

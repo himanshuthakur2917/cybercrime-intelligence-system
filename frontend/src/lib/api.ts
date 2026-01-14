@@ -1,4 +1,11 @@
 import axios, { AxiosResponse } from "axios";
+import {
+  MapDataResponse,
+  PatternResponse,
+  VictimMappingResponse,
+  TrajectoryResponse,
+  PredictionResponse,
+} from "@/types/api";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 
@@ -12,7 +19,6 @@ const axiosInstance = axios.create({
 // Response interceptor to handle nested data structure
 axiosInstance.interceptors.response.use(
   (response) => {
-    // If backend returns { success: true, data: ... }, extract data
     if (response.data && response.data.data) {
       return response.data;
     }
@@ -25,37 +31,42 @@ axiosInstance.interceptors.response.use(
 );
 
 // Helper to extract data property directly
-const getData = async <T>(promise: Promise<AxiosResponse<any>>): Promise<T> => {
+const getData = async <T>(promise: Promise<AxiosResponse<T>>): Promise<T> => {
   const response = await promise;
+  // @ts-ignore - Dynamic access to data wrapper if present
   return response.data?.data ?? response.data;
 };
 
 export const api = {
-  upload: (investigationId: string, data: any) =>
+  upload: (investigationId: string, data: unknown) =>
     getData(
       axiosInstance.post(`/investigations/${investigationId}/upload`, data)
     ),
 
   getMapData: (investigationId: string) =>
-    getData<any>(axiosInstance.get(`/geolocation/${investigationId}/map-data`)),
+    getData<MapDataResponse>(
+      axiosInstance.get(`/geolocation/${investigationId}/map-data`)
+    ),
 
   getPatterns: (investigationId: string) =>
-    getData<any>(
+    getData<PatternResponse>(
       axiosInstance.get(`/victim-mapping/${investigationId}/patterns`)
     ),
 
   getVictimMapping: (investigationId: string) =>
-    getData<any>(axiosInstance.get(`/victim-mapping/${investigationId}`)),
+    getData<VictimMappingResponse>(
+      axiosInstance.get(`/victim-mapping/${investigationId}`)
+    ),
 
   getTrajectory: (investigationId: string, suspectId: string) =>
-    getData<any>(
+    getData<TrajectoryResponse>(
       axiosInstance.get(
         `/victim-mapping/${investigationId}/trajectory/${suspectId}`
       )
     ),
 
   getPrediction: (investigationId: string, suspectId: string) =>
-    getData<any>(
+    getData<PredictionResponse>(
       axiosInstance.get(
         `/geolocation/${investigationId}/trajectory/${suspectId}`
       )
