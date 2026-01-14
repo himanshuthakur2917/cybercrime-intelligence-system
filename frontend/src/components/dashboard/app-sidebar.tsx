@@ -106,6 +106,11 @@ export const sidebarData = {
       url: "/dashboard/briefs",
       icon: IconUsers,
     },
+    {
+      title: "Data Upload",
+      url: "/dashboard/upload",
+      icon: IconFileDescription,
+    },
   ],
   navSecondary: [
     {
