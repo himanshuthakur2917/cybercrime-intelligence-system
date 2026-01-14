@@ -32,6 +32,10 @@ export class InvestigationsController {
     @Body() csvData: csvData,
   ) {
     // TODO: require auth middleware - requirePermissions('data:upload')
+    console.log(
+      `[Upload] Receiving data for investigation: ${investigationId}`,
+    );
+    console.log(`[Upload] Payload keys: ${Object.keys(csvData).join(', ')}`);
 
     try {
       const result = await this.investigationService.ingestData(
@@ -39,6 +43,7 @@ export class InvestigationsController {
         csvData,
       );
 
+      console.log(`[Upload] Data ingestion successful for ${investigationId}`);
       return { message: 'Data ingested successfully', data: result };
     } catch (error) {
       console.error('Error in uploadData controller:', error);
