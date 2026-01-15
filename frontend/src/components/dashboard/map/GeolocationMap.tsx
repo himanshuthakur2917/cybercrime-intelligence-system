@@ -387,81 +387,69 @@ const GeolocationMap: React.FC<GeolocationMapProps> = ({
               setSelectedId(null);
             }}
             className="map-popup"
+            maxWidth="220px"
           >
-            <div className="p-1 min-w-[180px] max-w-[260px]">
+            <div className="p-1 min-w-[160px] max-w-[200px] text-xs">
               {/* Caller Popup */}
               {popupInfo.type === "caller" &&
                 (() => {
                   const m = popupInfo.data as MapMarker;
                   return (
-                    <div className="space-y-2">
+                    <div className="space-y-1.5">
                       {/* Header with relationship arrow */}
-                      <div className="text-center border-b pb-2">
-                        <div className="flex items-center justify-center gap-2">
-                          <span className="px-2 py-0.5 bg-red-600 text-white text-[10px] font-bold rounded">
-                            🔴 SUSPECT
+                      <div className="text-center border-b pb-1">
+                        <div className="flex items-center justify-center gap-1 text-[9px]">
+                          <span className="px-1.5 py-0.5 bg-red-600 text-white font-bold rounded">
+                            SUSPECT
                           </span>
-                          <span className="text-lg">→</span>
-                          <span className="px-2 py-0.5 bg-green-600 text-white text-[10px] font-bold rounded">
-                            🟢 VICTIM
+                          <span>→</span>
+                          <span className="px-1.5 py-0.5 bg-green-600 text-white font-bold rounded">
+                            VICTIM
                           </span>
                         </div>
                       </div>
 
                       {/* Caller (Suspect) */}
-                      <div className="bg-red-50 p-2 rounded border-l-2 border-red-500">
-                        <div className="text-[10px] text-red-600 font-bold uppercase">
-                          Caller (Suspect)
+                      <div className="bg-red-50 p-1.5 rounded border-l-2 border-red-500">
+                        <div className="text-[9px] text-red-600 font-bold">
+                          CALLER
                         </div>
-                        <div className="font-bold text-sm">
-                          {m.caller?.name || "Unknown Caller"}
+                        <div className="font-bold text-[11px] truncate">
+                          {m.caller?.name || "Unknown"}
                         </div>
-                        <div className="text-xs text-gray-600">
-                          📱 {formatPhone(m.caller?.phone)}
+                        <div className="text-[10px] text-gray-600">
+                          {formatPhone(m.caller?.phone)}
                         </div>
                       </div>
 
                       {/* Receiver (Victim) */}
-                      <div className="bg-green-50 p-2 rounded border-l-2 border-green-500">
-                        <div className="text-[10px] text-green-600 font-bold uppercase">
-                          Called (Victim)
+                      <div className="bg-green-50 p-1.5 rounded border-l-2 border-green-500">
+                        <div className="text-[9px] text-green-600 font-bold">
+                          RECEIVER
                         </div>
-                        <div className="font-bold text-sm">
-                          {m.receiver?.name || "Unknown Victim"}
+                        <div className="font-bold text-[11px] truncate">
+                          {m.receiver?.name || "Unknown"}
                         </div>
-                        <div className="text-xs text-gray-600">
-                          📱 {formatPhone(m.receiver?.phone)}
+                        <div className="text-[10px] text-gray-600">
+                          {formatPhone(m.receiver?.phone)}
                         </div>
                       </div>
 
                       {/* Call Details */}
-                      <div className="flex justify-between text-xs border-t pt-1.5">
-                        <span>
-                          📍 {m.distance_km?.toFixed(1) || "?"} km away
-                        </span>
-                        <span>
-                          ⏱️ {formatDuration(toNumber(m.call_duration))}
-                        </span>
+                      <div className="flex justify-between text-[10px] border-t pt-1">
+                        <span>{m.distance_km?.toFixed(1) || "?"} km</span>
+                        <span>{formatDuration(toNumber(m.call_duration))}</span>
                       </div>
 
                       {/* Risk Badge */}
                       <div
-                        className="text-center py-1.5 rounded font-bold text-sm"
+                        className="text-center py-1 rounded font-bold text-[10px]"
                         style={{
                           backgroundColor: `${getRiskColor(m.risk_level)}20`,
                           color: getRiskColor(m.risk_level),
                         }}
                       >
-                        {m.risk_level === "HIGH"
-                          ? "⚠️ HIGH RISK CALL"
-                          : m.risk_level === "MEDIUM"
-                          ? "⚡ MEDIUM RISK"
-                          : "✓ LOW RISK"}
-                      </div>
-
-                      {/* Hint */}
-                      <div className="text-[10px] text-gray-400 text-center italic">
-                        Click victim marker to see all callers
+                        {m.risk_level || "LOW"} RISK
                       </div>
                     </div>
                   );
@@ -488,78 +476,63 @@ const GeolocationMap: React.FC<GeolocationMapProps> = ({
                   const p = popupInfo.data as ConvergencePoint;
                   const callers = getCallersForVictim(p.victim_id);
                   return (
-                    <div className="space-y-2">
-                      {/* Header with role badge */}
-                      <div className="text-center border-b pb-2">
-                        <span className="px-3 py-1 bg-green-600 text-white text-xs font-bold rounded">
-                          🟢 VICTIM LOCATION
+                    <div className="space-y-1.5">
+                      {/* Header */}
+                      <div className="text-center border-b pb-1">
+                        <span className="px-2 py-0.5 bg-green-600 text-white text-[9px] font-bold rounded">
+                          VICTIM
                         </span>
                       </div>
 
                       {/* Victim Info */}
-                      <div className="bg-green-50 p-2 rounded border-l-2 border-green-500">
-                        <div className="text-[10px] text-green-600 font-bold uppercase">
-                          Victim
+                      <div className="bg-green-50 p-1.5 rounded border-l-2 border-green-500">
+                        <div className="font-bold text-[11px] truncate">
+                          {p.victim_name || "Unknown"}
                         </div>
-                        <div className="font-bold text-sm">
-                          {p.victim_name || "Unknown Victim"}
-                        </div>
-                        <div className="text-xs text-gray-600 mt-1">
-                          📞 {toNumber(p.total_interactions)} calls received
+                        <div className="text-[10px] text-gray-600">
+                          {toNumber(p.total_interactions)} calls
                         </div>
                       </div>
 
                       {/* Connected Suspects */}
-                      <div className="bg-red-50 p-2 rounded border-l-2 border-red-500">
-                        <div className="text-[10px] text-red-600 font-bold uppercase mb-1">
-                          Connected Suspects (
+                      <div className="bg-red-50 p-1.5 rounded border-l-2 border-red-500">
+                        <div className="text-[9px] text-red-600 font-bold mb-0.5">
+                          SUSPECTS (
                           {callers.length || p.caller_names?.length || 0})
                         </div>
-                        <ul className="space-y-1 max-h-24 overflow-y-auto text-xs">
+                        <div className="space-y-0.5 max-h-14 overflow-y-auto text-[10px]">
                           {callers.length > 0 ? (
-                            callers.slice(0, 5).map((c, i) => (
-                              <li
-                                key={i}
-                                className="flex items-center gap-1 text-gray-700"
-                              >
-                                <span className="text-red-500">🔴</span>
-                                <span className="font-medium">
-                                  {c.caller?.name || "Unknown"}
-                                </span>
-                                <span className="text-gray-400 text-[10px]">
-                                  {formatPhone(c.caller?.phone)}
-                                </span>
-                              </li>
+                            callers.slice(0, 3).map((c, i) => (
+                              <div key={i} className="truncate text-gray-700">
+                                • {c.caller?.name || "Unknown"}
+                              </div>
                             ))
                           ) : p.caller_names?.length > 0 ? (
-                            p.caller_names.slice(0, 5).map((name, i) => (
-                              <li key={i} className="flex items-center gap-1">
-                                <span className="text-red-500">🔴</span>
-                                <span className="font-medium">{name}</span>
-                              </li>
+                            p.caller_names.slice(0, 3).map((name, i) => (
+                              <div key={i} className="truncate">
+                                • {name}
+                              </div>
                             ))
                           ) : (
-                            <li className="text-gray-500 italic">
-                              No caller data
-                            </li>
+                            <div className="text-gray-500 italic">No data</div>
                           )}
-                          {(callers.length > 5 ||
-                            (p.caller_names?.length || 0) > 5) && (
-                            <li className="text-gray-400 text-[10px]">
+                          {(callers.length > 3 ||
+                            (p.caller_names?.length || 0) > 3) && (
+                            <div className="text-gray-400">
                               +
                               {Math.max(
                                 callers.length,
                                 p.caller_names?.length || 0
-                              ) - 5}{" "}
-                              more suspects
-                            </li>
+                              ) - 3}{" "}
+                              more
+                            </div>
                           )}
-                        </ul>
+                        </div>
                       </div>
 
                       {/* Severity Badge */}
                       <div
-                        className="text-center py-1.5 rounded font-bold text-sm"
+                        className="text-center py-1 rounded font-bold text-[10px]"
                         style={{
                           backgroundColor: `${getSeverityColor(
                             p.zone_severity
@@ -567,18 +540,7 @@ const GeolocationMap: React.FC<GeolocationMapProps> = ({
                           color: getSeverityColor(p.zone_severity),
                         }}
                       >
-                        {p.zone_severity === "CRITICAL"
-                          ? "🚨 CRITICAL ZONE"
-                          : p.zone_severity === "HIGH"
-                          ? "⚠️ HIGH RISK ZONE"
-                          : p.zone_severity === "MEDIUM"
-                          ? "⚡ MEDIUM RISK"
-                          : "✓ LOW RISK"}
-                      </div>
-
-                      {/* Hint */}
-                      <div className="text-[10px] text-gray-400 text-center italic">
-                        Red markers show suspect call locations
+                        {p.zone_severity} RISK
                       </div>
                     </div>
                   );
