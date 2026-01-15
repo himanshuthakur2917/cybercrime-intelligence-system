@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { IconPlus, IconRefresh, IconUsers } from "@tabler/icons-react";
+import { IconPlus, IconRefresh } from "@tabler/icons-react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
@@ -137,6 +137,24 @@ export default function OfficersPage() {
     }
   };
 
+  const handleDelete = async (id: string, name: string) => {
+    if (
+      !confirm(
+        `Are you sure you want to permanently delete ${name}? This action cannot be undone.`
+      )
+    )
+      return;
+    try {
+      const res = await fetch(`${API_URL}/officers/${id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error("Failed to delete");
+      fetchOfficers();
+    } catch (err) {
+      alert("Failed to delete officer");
+    }
+  };
+
   // Convert API officer to OfficerCard format
   const toCardFormat = (o: Officer) => ({
     name: o.name,
@@ -165,9 +183,6 @@ export default function OfficersPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-primary/10">
-            <IconUsers className="h-6 w-6 text-primary" />
-          </div>
           <div>
             <h1 className="text-2xl font-bold">👮 Officer Management</h1>
             <p className="text-muted-foreground text-sm">
@@ -336,36 +351,18 @@ export default function OfficersPage() {
         </div>
       ) : officers.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground">
-          <p>No officers found. Add one to get started.</p>
+          <p>No officers found</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 5xl:grid-cols-4 gap-4">
           {officers.map((officer) => (
-            <div key={officer.id} className="relative">
-              <OfficerCard officer={toCardFormat(officer)} />
-              {/* Action overlay */}
-              <div className="absolute bottom-4 left-5 right-5 flex gap-2">
-                {officer.status === "ACTIVE" ? (
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    className="flex-1"
-                    onClick={() => handleDeactivate(officer.id, officer.name)}
-                  >
-                    Deactivate
-                  </Button>
-                ) : (
-                  <Button
-                    variant="default"
-                    size="sm"
-                    className="flex-1"
-                    onClick={() => handleReactivate(officer.id)}
-                  >
-                    Reactivate
-                  </Button>
-                )}
-              </div>
-            </div>
+            <OfficerCard
+              key={officer.id}
+              officer={toCardFormat(officer)}
+              onDeactivate={() => handleDeactivate(officer.id, officer.name)}
+              onReactivate={() => handleReactivate(officer.id)}
+              onDelete={() => handleDelete(officer.id, officer.name)}
+            />
           ))}
         </div>
       )}
