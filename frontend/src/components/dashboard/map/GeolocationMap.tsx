@@ -7,7 +7,7 @@ import Map, {
   Source,
   Layer,
   NavigationControl,
-} from "react-map-gl";
+} from "react-map-gl/mapbox";
 import "mapbox-gl/dist/mapbox-gl.css";
 
 // Helper to safely convert Neo4j Integer objects ({low, high}) to regular JS numbers
@@ -241,8 +241,9 @@ const GeolocationMap: React.FC<GeolocationMapProps> = ({
         style={{ width: "100%", height: "100%" }}
         mapStyle="mapbox://styles/mapbox/dark-v11"
         onClick={handleMapClick}
+        reuseMaps
       >
-        <NavigationControl position="top-right" />
+        <NavigationControl position="top-right" showCompass showZoom />
 
         {/* Connection Lines */}
         <Source id="connections" type="geojson" data={linesGeoJson}>
@@ -275,7 +276,6 @@ const GeolocationMap: React.FC<GeolocationMapProps> = ({
             key={tower.tower_id || `tower-${idx}`}
             longitude={tower.longitude}
             latitude={tower.latitude}
-            anchor="center"
             onClick={(e) => {
               e.originalEvent.stopPropagation();
               setPopupInfo({
@@ -339,7 +339,6 @@ const GeolocationMap: React.FC<GeolocationMapProps> = ({
               key={point.victim_id || `conv-${idx}`}
               longitude={point.convergence_lon}
               latitude={point.convergence_lat}
-              anchor="center"
               onClick={(e) => {
                 e.originalEvent.stopPropagation();
                 setSelectedId(`conv-${point.victim_id}`);
