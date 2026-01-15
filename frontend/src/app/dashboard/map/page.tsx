@@ -1,10 +1,15 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import dynamic from "next/dynamic";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
-import { IconUser, IconMapPin, IconAccessPoint } from "@tabler/icons-react";
+import {
+  IconUser,
+  IconMapPin,
+  IconAccessPoint,
+  IconFilter,
+} from "@tabler/icons-react";
 
 // Dynamically import the map component to avoid SSR issues with Leaflet
 const GeolocationMap = dynamic(
@@ -19,6 +24,8 @@ const GeolocationMap = dynamic(
   }
 );
 
+type FilterType = "all" | "known" | "unknown";
+
 export default function MapPage() {
   const [data, setData] = useState<{
     markers: any[];
@@ -26,6 +33,7 @@ export default function MapPage() {
     convergencePoints: any[];
   }>({ markers: [], cellTowers: [], convergencePoints: [] });
   const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<FilterType>("all");
 
   useEffect(() => {
     const fetchData = async () => {
@@ -51,6 +59,32 @@ export default function MapPage() {
     fetchData();
   }, []);
 
+  // Filter markers based on known/unknown status
+  const filteredMarkers = useMemo(() => {
+    if (filter === "all") return data.markers;
+
+    return data.markers.filter((m: any) => {
+      const callerKnown = m.caller?.name && m.caller.name !== "Unknown";
+      const receiverKnown = m.receiver?.name && m.receiver.name !== "Unknown";
+      const hasKnownName = callerKnown || receiverKnown;
+
+      return filter === "known" ? hasKnownName : !hasKnownName;
+    });
+  }, [data.markers, filter]);
+
+  // Filter convergence points based on known/unknown
+  const filteredConvergence = useMemo(() => {
+    if (filter === "all") return data.convergencePoints;
+
+    return data.convergencePoints.filter((p: any) => {
+      const victimKnown =
+        p.victim_name &&
+        p.victim_name !== "Unknown" &&
+        p.victim_name !== "Unknown Victim";
+      return filter === "known" ? victimKnown : !victimKnown;
+    });
+  }, [data.convergencePoints, filter]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-[calc(100vh-100px)]">
@@ -63,14 +97,45 @@ export default function MapPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6 p-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold">🗺️ Geolocation Map</h1>
-        <p className="text-muted-foreground">
-          Real-time tracking with triangulation accuracy ±300m
-        </p>
+    <div className="flex flex-col gap-4 p-6">
+      {/* Filter Bar */}
+      <div className="flex items-center justify-between bg-card border rounded-lg p-3">
+        <div className="flex items-center gap-2 text-sm">
+          <IconFilter className="h-4 w-4 text-muted-foreground" />
+          <span className="text-muted-foreground">Filter:</span>
+          <div className="flex gap-1">
+            {(["all", "known", "unknown"] as FilterType[]).map((f) => (
+              <button
+                key={f}
+                onClick={() => setFilter(f)}
+                className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                  filter === f
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted hover:bg-muted/80"
+                }`}
+              >
+                {f === "all"
+                  ? "All"
+                  : f === "known"
+                  ? "Known Names"
+                  : "Unknown Only"}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="text-xs text-muted-foreground">
+          Showing {filteredMarkers.length} of {data.markers.length} calls
+        </div>
       </div>
+
+      {/* Map Component */}
+      <GeolocationMap
+        markers={filteredMarkers}
+        cellTowers={data.cellTowers}
+        convergencePoints={filteredConvergence}
+        center={[28.6139, 77.209]}
+        zoom={11}
+      />
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -122,15 +187,6 @@ export default function MapPage() {
           </div>
         </div>
       </div>
-
-      {/* Map Component */}
-      <GeolocationMap
-        markers={data.markers}
-        cellTowers={data.cellTowers}
-        convergencePoints={data.convergencePoints}
-        center={[28.6139, 77.209]}
-        zoom={11}
-      />
 
       {/* Info Panel */}
       <div className="p-4 bg-muted/50 rounded-lg text-sm">
