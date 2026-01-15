@@ -50,6 +50,7 @@ export class SuspectIngestionService {
    */
   async ingestSuspectsFromFile(
     filePath: string,
+    investigationId?: string,
   ): Promise<{ success: number; errors: number }> {
     this.logger.log(
       `Starting suspect ingestion from: ${filePath}`,
@@ -88,7 +89,7 @@ export class SuspectIngestionService {
         batch.push(row);
 
         if (batch.length >= batchSize) {
-          const result = await this.insertSuspectBatch(batch);
+          const result = await this.insertSuspectBatch(batch, investigationId);
           stats.success += result.success;
           stats.errors += result.errors;
           batch = [];
@@ -100,7 +101,7 @@ export class SuspectIngestionService {
 
     // Insert remaining batch
     if (batch.length > 0) {
-      const result = await this.insertSuspectBatch(batch);
+      const result = await this.insertSuspectBatch(batch, investigationId);
       stats.success += result.success;
       stats.errors += result.errors;
     }
@@ -119,6 +120,7 @@ export class SuspectIngestionService {
    */
   async ingestVictimsFromFile(
     filePath: string,
+    investigationId?: string,
   ): Promise<{ success: number; errors: number }> {
     this.logger.log(
       `Starting victim ingestion from: ${filePath}`,
@@ -157,7 +159,7 @@ export class SuspectIngestionService {
         batch.push(row);
 
         if (batch.length >= batchSize) {
-          const result = await this.insertVictimBatch(batch);
+          const result = await this.insertVictimBatch(batch, investigationId);
           stats.success += result.success;
           stats.errors += result.errors;
           batch = [];
@@ -169,7 +171,7 @@ export class SuspectIngestionService {
 
     // Insert remaining batch
     if (batch.length > 0) {
-      const result = await this.insertVictimBatch(batch);
+      const result = await this.insertVictimBatch(batch, investigationId);
       stats.success += result.success;
       stats.errors += result.errors;
     }
@@ -189,6 +191,7 @@ export class SuspectIngestionService {
    */
   async ingestCDRFromFile(
     filePath: string,
+    investigationId?: string,
   ): Promise<{ success: number; errors: number }> {
     this.logger.log(
       `Starting CDR ingestion from: ${filePath}`,
@@ -229,7 +232,7 @@ export class SuspectIngestionService {
         batch.push(row);
 
         if (batch.length >= batchSize) {
-          const result = await this.insertCDRBatch(batch);
+          const result = await this.insertCDRBatch(batch, investigationId);
           stats.success += result.success;
           stats.errors += result.errors;
           batch = [];
@@ -248,7 +251,7 @@ export class SuspectIngestionService {
 
     // Insert remaining batch
     if (batch.length > 0) {
-      const result = await this.insertCDRBatch(batch);
+      const result = await this.insertCDRBatch(batch, investigationId);
       stats.success += result.success;
       stats.errors += result.errors;
     }
@@ -267,6 +270,7 @@ export class SuspectIngestionService {
    */
   async ingestTransactionsFromFile(
     filePath: string,
+    investigationId?: string,
   ): Promise<{ success: number; errors: number }> {
     this.logger.log(
       `Starting transaction ingestion from: ${filePath}`,
@@ -307,7 +311,10 @@ export class SuspectIngestionService {
         batch.push(row);
 
         if (batch.length >= batchSize) {
-          const result = await this.insertTransactionBatch(batch);
+          const result = await this.insertTransactionBatch(
+            batch,
+            investigationId,
+          );
           stats.success += result.success;
           stats.errors += result.errors;
           batch = [];
@@ -326,7 +333,7 @@ export class SuspectIngestionService {
 
     // Insert remaining batch
     if (batch.length > 0) {
-      const result = await this.insertTransactionBatch(batch);
+      const result = await this.insertTransactionBatch(batch, investigationId);
       stats.success += result.success;
       stats.errors += result.errors;
     }
@@ -345,6 +352,7 @@ export class SuspectIngestionService {
    */
   private async insertSuspectBatch(
     batch: SuspectRow[],
+    investigationId?: string,
   ): Promise<{ success: number; errors: number }> {
     try {
       await this.neo4j.writeCypher(
@@ -356,8 +364,13 @@ export class SuspectIngestionService {
             s.alias = row.alias,
             s.network_role = row.network_role,
             s.updatedAt = datetime()
+        
+        WITH s, row
+        WHERE $investigationId IS NOT NULL
+        MERGE (i:Investigation {id: $investigationId})
+        MERGE (i)-[:HAS_SUSPECT]->(s)
         `,
-        { batch },
+        { batch, investigationId: investigationId || null },
       );
       return { success: batch.length, errors: 0 };
     } catch (error) {
@@ -374,6 +387,7 @@ export class SuspectIngestionService {
    */
   private async insertVictimBatch(
     batch: VictimRow[],
+    investigationId?: string,
   ): Promise<{ success: number; errors: number }> {
     try {
       await this.neo4j.writeCypher(
@@ -384,8 +398,13 @@ export class SuspectIngestionService {
             v.reported_loss = row.reported_loss,
             v.complaint_date = row.complaint_date,
             v.updatedAt = datetime()
+        
+        WITH v, row
+        WHERE $investigationId IS NOT NULL
+        MERGE (i:Investigation {id: $investigationId})
+        MERGE (i)-[:HAS_VICTIM]->(v)
         `,
-        { batch },
+        { batch, investigationId: investigationId || null },
       );
       return { success: batch.length, errors: 0 };
     } catch (error) {
@@ -403,6 +422,7 @@ export class SuspectIngestionService {
    */
   private async insertCDRBatch(
     batch: CDRRow[],
+    investigationId?: string,
   ): Promise<{ success: number; errors: number }> {
     try {
       await this.neo4j.writeCypher(
@@ -416,8 +436,14 @@ export class SuspectIngestionService {
           location: point({latitude: row.lat, longitude: row.lon}),
           cell_tower_id: row.cell_tower_id
         }]->(callee)
+        
+        WITH caller, callee, row
+        WHERE $investigationId IS NOT NULL
+        MERGE (i:Investigation {id: $investigationId})
+        MERGE (i)-[:HAS_PHONE]->(caller)
+        MERGE (i)-[:HAS_PHONE]->(callee)
         `,
-        { batch },
+        { batch, investigationId: investigationId || null },
       );
       return { success: batch.length, errors: 0 };
     } catch (error) {
@@ -432,6 +458,7 @@ export class SuspectIngestionService {
    */
   private async insertTransactionBatch(
     batch: TransactionRow[],
+    investigationId?: string,
   ): Promise<{ success: number; errors: number }> {
     try {
       await this.neo4j.writeCypher(
@@ -445,8 +472,14 @@ export class SuspectIngestionService {
           type: row.type,
           suspicious_score: row.suspicious_score
         }]->(to)
+        
+        WITH from, to, row
+        WHERE $investigationId IS NOT NULL
+        MERGE (i:Investigation {id: $investigationId})
+        MERGE (i)-[:HAS_ACCOUNT]->(from)
+        MERGE (i)-[:HAS_ACCOUNT]->(to)
         `,
-        { batch },
+        { batch, investigationId: investigationId || null },
       );
       return { success: batch.length, errors: 0 };
     } catch (error) {

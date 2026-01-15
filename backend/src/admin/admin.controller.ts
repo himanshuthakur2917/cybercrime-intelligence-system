@@ -139,6 +139,7 @@ export class AdminController {
   async ingestSuspects(
     @UploadedFile() file: Express.Multer.File,
     @Body('filePath') filePath?: string,
+    @Body('investigationId') investigationId?: string,
   ): Promise<IngestionResult> {
     this.logger.log('Suspects ingestion request received', 'AdminController');
 
@@ -159,8 +160,10 @@ export class AdminController {
         );
       }
 
-      const result =
-        await this.suspectIngestion.ingestSuspectsFromFile(csvPath);
+      const result = await this.suspectIngestion.ingestSuspectsFromFile(
+        csvPath,
+        investigationId,
+      );
 
       if (tempCreated) {
         fs.unlinkSync(csvPath);
@@ -191,6 +194,7 @@ export class AdminController {
   async ingestVictims(
     @UploadedFile() file: Express.Multer.File,
     @Body('filePath') filePath?: string,
+    @Body('investigationId') investigationId?: string,
   ): Promise<IngestionResult> {
     this.logger.log('Victims ingestion request received', 'AdminController');
 
@@ -211,7 +215,10 @@ export class AdminController {
         );
       }
 
-      const result = await this.suspectIngestion.ingestVictimsFromFile(csvPath);
+      const result = await this.suspectIngestion.ingestVictimsFromFile(
+        csvPath,
+        investigationId,
+      );
 
       if (tempCreated) {
         fs.unlinkSync(csvPath);
@@ -242,6 +249,7 @@ export class AdminController {
   async ingestCDR(
     @UploadedFile() file: Express.Multer.File,
     @Body('filePath') filePath?: string,
+    @Body('investigationId') investigationId?: string,
   ): Promise<IngestionResult> {
     this.logger.log('CDR ingestion request received', 'AdminController');
 
@@ -262,7 +270,10 @@ export class AdminController {
         );
       }
 
-      const result = await this.suspectIngestion.ingestCDRFromFile(csvPath);
+      const result = await this.suspectIngestion.ingestCDRFromFile(
+        csvPath,
+        investigationId,
+      );
 
       if (tempCreated) {
         fs.unlinkSync(csvPath);
@@ -290,6 +301,7 @@ export class AdminController {
   async ingestTransactions(
     @UploadedFile() file: Express.Multer.File,
     @Body('filePath') filePath?: string,
+    @Body('investigationId') investigationId?: string,
   ): Promise<IngestionResult> {
     this.logger.log(
       'Transactions ingestion request received',
@@ -313,8 +325,10 @@ export class AdminController {
         );
       }
 
-      const result =
-        await this.suspectIngestion.ingestTransactionsFromFile(csvPath);
+      const result = await this.suspectIngestion.ingestTransactionsFromFile(
+        csvPath,
+        investigationId,
+      );
 
       if (tempCreated) {
         fs.unlinkSync(csvPath);
