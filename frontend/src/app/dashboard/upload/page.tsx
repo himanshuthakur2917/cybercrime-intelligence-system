@@ -243,7 +243,7 @@ export default function OfficerUploadPage() {
               cdrFile &&
               uploadFile(
                 cdrFile,
-                "/admin/upload/cdr",
+                "/admin/ingest/cdr",
                 setCdrLoading,
                 setCdrResult
               )
@@ -314,7 +314,7 @@ export default function OfficerUploadPage() {
               transactionFile &&
               uploadFile(
                 transactionFile,
-                "/admin/upload/transactions",
+                "/admin/ingest/transactions",
                 setTransactionLoading,
                 setTransactionResult
               )
