@@ -102,6 +102,17 @@ const getLineColor = (proximityPattern: string, duration: number) => {
   return "#22c55e"; // Green
 };
 
+// Helper to safely convert Neo4j Integer objects ({low, high}) to regular JS numbers
+const toNumber = (value: unknown): number => {
+  if (value === null || value === undefined) return 0;
+  if (typeof value === "number") return value;
+  if (typeof value === "object" && value !== null && "low" in value) {
+    // Neo4j Integer object
+    return (value as { low: number; high: number }).low;
+  }
+  return Number(value) || 0;
+};
+
 const GeolocationMap: React.FC<GeolocationMapProps> = ({
   markers = [],
   cellTowers = [],
@@ -207,12 +218,13 @@ const GeolocationMap: React.FC<GeolocationMapProps> = ({
                     </span>
                     <br />
                     <span>
-                      <strong>Duration:</strong> {marker.call_duration || 0}s
+                      <strong>Duration:</strong>{" "}
+                      {toNumber(marker.call_duration)}s
                     </span>
                     <br />
                     <span>
                       <strong>Accuracy:</strong> ±
-                      {marker.caller_position?.accuracy_m || "N/A"}m
+                      {toNumber(marker.caller_position?.accuracy_m)}m
                     </span>
                     <br />
                     <span
@@ -301,12 +313,12 @@ const GeolocationMap: React.FC<GeolocationMapProps> = ({
                     </span>
                     <br />
                     <span>
-                      <strong>Callers:</strong> {point.unique_callers || 0}
+                      <strong>Callers:</strong> {toNumber(point.unique_callers)}
                     </span>
                     <br />
                     <span>
                       <strong>Interactions:</strong>{" "}
-                      {point.total_interactions || 0}
+                      {toNumber(point.total_interactions)}
                     </span>
                     <br />
                     <span
