@@ -10,6 +10,7 @@ import { VictimMappingModule } from './victim-mapping/victim-mapping.module';
 import { LoggerModule } from './common/logger/logger.module';
 import { AdminModule } from './admin/admin.module';
 import { TrackingModule } from './tracking/tracking.module';
+import { OfficersModule } from './officers/officers.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { TrackingModule } from './tracking/tracking.module';
     SupabaseModule,
     AdminModule,
     TrackingModule,
+    OfficersModule,
     InvestigationsModule,
     GeolocationModule,
     VictimMappingModule,
