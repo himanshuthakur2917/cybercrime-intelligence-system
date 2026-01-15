@@ -172,7 +172,7 @@ export default function OfficerUploadPage() {
               suspectFile &&
               uploadFile(
                 suspectFile,
-                "/admin/upload/suspects",
+                "/admin/ingest/suspects",
                 setSuspectLoading,
                 setSuspectResult
               )

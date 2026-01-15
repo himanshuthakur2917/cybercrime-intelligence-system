@@ -39,7 +39,7 @@ export default function AdminUploadPage() {
     formData.append("file", towerFile);
 
     try {
-      const res = await fetch(`${API_URL}/admin/upload/towers`, {
+      const res = await fetch(`${API_URL}/admin/ingest/towers`, {
         method: "POST",
         body: formData,
       });
@@ -61,7 +61,7 @@ export default function AdminUploadPage() {
     formData.append("file", zoneFile);
 
     try {
-      const res = await fetch(`${API_URL}/admin/upload/zones`, {
+      const res = await fetch(`${API_URL}/admin/ingest/zones`, {
         method: "POST",
         body: formData,
       });
