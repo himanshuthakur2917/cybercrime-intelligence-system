@@ -41,6 +41,11 @@ export default function PatternsPage() {
   const [relationships, setRelationships] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Pagination state
+  const [patternPage, setPatternPage] = useState(1);
+  const [relationPage, setRelationPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -147,43 +152,86 @@ export default function PatternsPage() {
             </p>
           </div>
         ) : (
-          <div className="grid gap-3">
-            {patterns.slice(0, 20).map((p: any, idx: number) => (
-              <div
-                key={`${p.caller_id}-${p.victim_id}-${idx}`}
-                className={`bg-card border border-l-4 ${getRiskBorder(
-                  p.harassment_severity
-                )} rounded-lg p-4 flex items-center justify-between`}
-              >
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="font-medium truncate">
-                      {p.caller_name || "Unknown"}
-                    </span>
-                    <span className="text-muted-foreground">→</span>
-                    <span className="font-medium truncate">
-                      {p.victim_name || "Unknown"}
+          <>
+            <div className="grid gap-3">
+              {patterns
+                .slice(
+                  (patternPage - 1) * ITEMS_PER_PAGE,
+                  patternPage * ITEMS_PER_PAGE
+                )
+                .map((p, idx: number) => (
+                  <div
+                    key={`${p.caller_id}-${p.victim_id}-${idx}`}
+                    className={`bg-card border border-l-4 ${getRiskBorder(
+                      p.harassment_severity
+                    )} rounded-lg p-4 flex items-center justify-between`}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        <span className="px-1.5 py-0.5 text-[10px] font-bold bg-red-100 text-red-700 rounded">
+                          SUSPECT
+                        </span>
+                        <span className="font-medium truncate">
+                          {p.caller_name || "Unknown"}
+                        </span>
+                        <span className="text-muted-foreground">→</span>
+                        <span className="px-1.5 py-0.5 text-[10px] font-bold bg-green-100 text-green-700 rounded">
+                          VICTIM
+                        </span>
+                        <span className="font-medium truncate">
+                          {p.victim_name || "Unknown"}
+                        </span>
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        {p.evidence_count || 0} calls detected
+                      </div>
+                    </div>
+                    <span
+                      className={`px-2 py-1 rounded text-xs font-bold ${getRiskColor(
+                        p.harassment_severity
+                      )}`}
+                    >
+                      {p.harassment_severity || "UNKNOWN"}
                     </span>
                   </div>
-                  <div className="text-sm text-muted-foreground">
-                    {p.evidence_count || 0} calls detected
-                  </div>
-                </div>
-                <span
-                  className={`px-2 py-1 rounded text-xs font-bold ${getRiskColor(
-                    p.harassment_severity
-                  )}`}
-                >
-                  {p.harassment_severity || "UNKNOWN"}
+                ))}
+            </div>
+            {/* Pagination Controls */}
+            {patterns.length > ITEMS_PER_PAGE && (
+              <div className="flex items-center justify-between mt-4 text-sm">
+                <span className="text-muted-foreground">
+                  Page {patternPage} of{" "}
+                  {Math.ceil(patterns.length / ITEMS_PER_PAGE)}(
+                  {patterns.length} total)
                 </span>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setPatternPage((p) => Math.max(1, p - 1))}
+                    disabled={patternPage === 1}
+                    className="px-3 py-1 bg-muted rounded hover:bg-muted/80 disabled:opacity-50"
+                  >
+                    ← Prev
+                  </button>
+                  <button
+                    onClick={() =>
+                      setPatternPage((p) =>
+                        Math.min(
+                          Math.ceil(patterns.length / ITEMS_PER_PAGE),
+                          p + 1
+                        )
+                      )
+                    }
+                    disabled={
+                      patternPage >= Math.ceil(patterns.length / ITEMS_PER_PAGE)
+                    }
+                    className="px-3 py-1 bg-muted rounded hover:bg-muted/80 disabled:opacity-50"
+                  >
+                    Next →
+                  </button>
+                </div>
               </div>
-            ))}
-            {patterns.length > 20 && (
-              <p className="text-sm text-muted-foreground text-center py-2">
-                +{patterns.length - 20} more patterns
-              </p>
             )}
-          </div>
+          </>
         )}
       </div>
 
@@ -196,57 +244,109 @@ export default function PatternsPage() {
             <p className="text-muted-foreground">No relationships found.</p>
           </div>
         ) : (
-          <div className="bg-card border rounded-xl overflow-hidden">
-            <table className="w-full text-sm">
-              <thead className="bg-muted/50">
-                <tr>
-                  <th className="px-4 py-3 text-left font-medium">Caller</th>
-                  <th className="px-4 py-3 text-left font-medium">Victim</th>
-                  <th className="px-4 py-3 text-left font-medium">Calls</th>
-                  <th className="px-4 py-3 text-left font-medium">Risk</th>
-                </tr>
-              </thead>
-              <tbody>
-                {relationships.slice(0, 15).map((rel: any, idx: number) => (
-                  <tr key={idx} className="border-t hover:bg-muted/20">
-                    <td className="px-4 py-3">
-                      <div className="font-medium">
-                        {rel.caller_name || "Unknown"}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {rel.caller_phone}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="font-medium">
-                        {rel.victim_name || "Unknown"}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {rel.victim_phone}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 font-bold">
-                      {rel.call_count || 0}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`px-2 py-1 rounded text-xs font-bold ${getRiskColor(
-                          rel.risk_level
-                        )}`}
-                      >
-                        {rel.risk_level || "LOW"}
+          <>
+            <div className="bg-card border rounded-xl overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/50">
+                  <tr>
+                    <th className="px-4 py-3 text-left font-medium">
+                      <span className="inline-flex items-center gap-1">
+                        <span className="px-1 py-0.5 text-[9px] font-bold bg-red-100 text-red-700 rounded">
+                          S
+                        </span>
+                        Caller
                       </span>
-                    </td>
+                    </th>
+                    <th className="px-4 py-3 text-left font-medium">
+                      <span className="inline-flex items-center gap-1">
+                        <span className="px-1 py-0.5 text-[9px] font-bold bg-green-100 text-green-700 rounded">
+                          V
+                        </span>
+                        Victim
+                      </span>
+                    </th>
+                    <th className="px-4 py-3 text-left font-medium">Calls</th>
+                    <th className="px-4 py-3 text-left font-medium">Risk</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-            {relationships.length > 15 && (
-              <div className="px-4 py-2 text-sm text-muted-foreground text-center border-t">
-                Showing 15 of {relationships.length} relationships
+                </thead>
+                <tbody>
+                  {relationships
+                    .slice(
+                      (relationPage - 1) * ITEMS_PER_PAGE,
+                      relationPage * ITEMS_PER_PAGE
+                    )
+                    .map((rel, idx: number) => (
+                      <tr key={idx} className="border-t hover:bg-muted/20">
+                        <td className="px-4 py-3">
+                          <div className="font-medium">
+                            {rel.caller_name || "Unknown"}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {rel.caller_phone}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="font-medium">
+                            {rel.victim_name || "Unknown"}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {rel.victim_phone}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 font-bold">
+                          {rel.call_count || 0}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span
+                            className={`px-2 py-1 rounded text-xs font-bold ${getRiskColor(
+                              rel.risk_level
+                            )}`}
+                          >
+                            {rel.risk_level || "LOW"}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
+            {/* Pagination Controls */}
+            {relationships.length > ITEMS_PER_PAGE && (
+              <div className="flex items-center justify-between mt-4 text-sm">
+                <span className="text-muted-foreground">
+                  Page {relationPage} of{" "}
+                  {Math.ceil(relationships.length / ITEMS_PER_PAGE)}(
+                  {relationships.length} total)
+                </span>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setRelationPage((p) => Math.max(1, p - 1))}
+                    disabled={relationPage === 1}
+                    className="px-3 py-1 bg-muted rounded hover:bg-muted/80 disabled:opacity-50"
+                  >
+                    ← Prev
+                  </button>
+                  <button
+                    onClick={() =>
+                      setRelationPage((p) =>
+                        Math.min(
+                          Math.ceil(relationships.length / ITEMS_PER_PAGE),
+                          p + 1
+                        )
+                      )
+                    }
+                    disabled={
+                      relationPage >=
+                      Math.ceil(relationships.length / ITEMS_PER_PAGE)
+                    }
+                    className="px-3 py-1 bg-muted rounded hover:bg-muted/80 disabled:opacity-50"
+                  >
+                    Next →
+                  </button>
+                </div>
               </div>
             )}
-          </div>
+          </>
         )}
       </div>
     </div>
