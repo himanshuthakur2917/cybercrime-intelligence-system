@@ -9,6 +9,7 @@ import { GeolocationModule } from './geolocation/geolocation.module';
 import { VictimMappingModule } from './victim-mapping/victim-mapping.module';
 import { LoggerModule } from './common/logger/logger.module';
 import { AdminModule } from './admin/admin.module';
+import { TrackingModule } from './tracking/tracking.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { AdminModule } from './admin/admin.module';
     Neo4jModule,
     SupabaseModule,
     AdminModule,
+    TrackingModule,
     InvestigationsModule,
     GeolocationModule,
     VictimMappingModule,
