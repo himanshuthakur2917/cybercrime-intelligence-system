@@ -70,10 +70,20 @@ export interface ConvergencePoint {
   zone_severity: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
 }
 
+// Restricted Zone from Supabase PostGIS
+export interface RestrictedZone {
+  id: string;
+  name: string;
+  type: "AIRPORT" | "MILITARY" | "GOVERNMENT" | "BORDER" | "NUCLEAR" | "OTHER";
+  polygon: number[][]; // Array of [lng, lat] coordinates
+  threat_level: "CRITICAL" | "HIGH" | "MEDIUM";
+}
+
 interface GeolocationMapProps {
   markers?: MapMarker[];
   cellTowers?: CellTower[];
   convergencePoints?: ConvergencePoint[];
+  restrictedZones?: RestrictedZone[];
   center?: [number, number];
   zoom?: number;
 }
@@ -109,13 +119,14 @@ const GeolocationMap: React.FC<GeolocationMapProps> = ({
   markers = [],
   cellTowers = [],
   convergencePoints = [],
+  restrictedZones = [],
   center = [28.6139, 77.209],
   zoom = 11,
 }) => {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [popupInfo, setPopupInfo] = useState<{
-    type: "caller" | "tower" | "convergence";
-    data: MapMarker | CellTower | ConvergencePoint;
+    type: "caller" | "tower" | "convergence" | "zone";
+    data: MapMarker | CellTower | ConvergencePoint | RestrictedZone;
     lng: number;
     lat: number;
   } | null>(null);
@@ -184,6 +195,26 @@ const GeolocationMap: React.FC<GeolocationMapProps> = ({
       }));
     return { type: "FeatureCollection" as const, features };
   }, [validMarkers, selectedId]);
+
+  // Build restricted zones GeoJSON for PostGIS zones
+  const zonesGeoJson = useMemo(() => {
+    const features = restrictedZones
+      .filter((z) => z.polygon && z.polygon.length >= 3)
+      .map((z) => ({
+        type: "Feature" as const,
+        properties: {
+          id: z.id,
+          name: z.name,
+          type: z.type,
+          threat_level: z.threat_level,
+        },
+        geometry: {
+          type: "Polygon" as const,
+          coordinates: [z.polygon],
+        },
+      }));
+    return { type: "FeatureCollection" as const, features };
+  }, [restrictedZones]);
 
   // Get callers for a victim
   const getCallersForVictim = useCallback(
@@ -266,6 +297,41 @@ const GeolocationMap: React.FC<GeolocationMapProps> = ({
                 0.8,
                 0.15,
               ],
+            }}
+          />
+        </Source>
+
+        {/* Restricted Zones (PostGIS geofences) */}
+        <Source id="restricted-zones" type="geojson" data={zonesGeoJson}>
+          <Layer
+            id="zone-fill"
+            type="fill"
+            paint={{
+              "fill-color": [
+                "case",
+                ["==", ["get", "threat_level"], "CRITICAL"],
+                "#dc2626",
+                ["==", ["get", "threat_level"], "HIGH"],
+                "#ea580c",
+                "#eab308",
+              ],
+              "fill-opacity": 0.15,
+            }}
+          />
+          <Layer
+            id="zone-outline"
+            type="line"
+            paint={{
+              "line-color": [
+                "case",
+                ["==", ["get", "threat_level"], "CRITICAL"],
+                "#dc2626",
+                ["==", ["get", "threat_level"], "HIGH"],
+                "#ea580c",
+                "#eab308",
+              ],
+              "line-width": 2,
+              "line-dasharray": [2, 2],
             }}
           />
         </Source>
