@@ -7,6 +7,7 @@ import {
   IconChartAreaLine,
   IconChartBar,
   IconCrown,
+  IconDatabase,
   IconFileDescription,
   IconHelp,
   IconSearch,
@@ -39,6 +40,11 @@ export const sidebarData = {
     avatar: "/avatars/shadcn.jpg",
   },
   adminNav: [
+    {
+      title: "Data Ingestion",
+      url: "/admin/upload",
+      icon: IconDatabase,
+    },
     {
       title: "Overview",
       url: "/admin",
@@ -112,23 +118,6 @@ export const sidebarData = {
       icon: IconFileDescription,
     },
   ],
-  navSecondary: [
-    {
-      title: "Settings",
-      url: "#",
-      icon: IconSettings,
-    },
-    {
-      title: "Get Help",
-      url: "#",
-      icon: IconHelp,
-    },
-    {
-      title: "Search",
-      url: "#",
-      icon: IconSearch,
-    },
-  ],
 };
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
@@ -167,7 +156,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={navItems} />
-        <NavSecondary items={sidebarData.navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={sidebarData.user} />
