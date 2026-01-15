@@ -1,38 +1,38 @@
-tower_id,tower_location,latitude,longitude,coverage_radius_km,state,city,tower_type,provider,calls_originated_count,high_risk_calls,suspected_operation_type,investigation_priority
-DL-CP-001,Connaught Place Central,28.6328,77.2197,2.5,Delhi,New Delhi,MACRO,Jio,3,0,ORDINARY_TOWER,LOW
-DL-CP-002,Palika Bazaar,28.6298,77.2167,2.3,Delhi,New Delhi,MACRO,Airtel,3,0,ORDINARY_TOWER,LOW
-DL-CP-003,Barakhamba Road,28.6358,77.2227,2.4,Delhi,New Delhi,MACRO,Vodafone,2,0,ORDINARY_TOWER,LOW
-DL-SD-004,Hauz Khas Village,28.5494,77.2001,2.0,Delhi,New Delhi,MACRO,Jio,4,0,ORDINARY_TOWER,LOW
-DL-SD-005,Saket,28.526,77.182,1.9,Delhi,New Delhi,MACRO,Airtel,0,0,ORDINARY_TOWER,LOW
-DL-SD-007,Saket Mall,28.5294,77.2201,1.8,Delhi,New Delhi,MACRO,Vodafone,0,0,ORDINARY_TOWER,LOW
-DL-ED-013,IP Extension,28.6389,77.2989,1.8,Delhi,New Delhi,MACRO,Jio,3,0,ORDINARY_TOWER,LOW
-DL-ND-010,Rohini Sector 7,28.7089,77.1989,2.2,Delhi,New Delhi,MACRO,Airtel,3,0,ORDINARY_TOWER,LOW
-DL-WD-014,Janakpuri District Center,28.6489,77.0989,2.1,Delhi,New Delhi,MACRO,Vodafone,3,0,ORDINARY_TOWER,LOW
-DL-WD-015,Dwarka Sector 21,28.6289,77.0789,2.0,Delhi,New Delhi,MACRO,Jio,1,0,ORDINARY_TOWER,LOW
-DL-ITO-036,ITO,28.6269,77.2469,1.9,Delhi,New Delhi,MACRO,Airtel,1,0,ORDINARY_TOWER,LOW
-DL-NDLS-035,New Delhi Railway Station,28.6419,77.2193,2.3,Delhi,New Delhi,MACRO,Vodafone,2,0,ORDINARY_TOWER,LOW
-DL-SN-045,Safdarjung Hospital,28.568,77.175,2.1,Delhi,New Delhi,MACRO,Jio,0,0,ORDINARY_TOWER,LOW
-DL-NE-056,North East Delhi,28.71,77.32,2.0,Delhi,New Delhi,MACRO,Airtel,0,0,ORDINARY_TOWER,LOW
-DL-NW-067,North West Delhi,28.685,77.098,2.2,Delhi,New Delhi,MACRO,Vodafone,1,0,ORDINARY_TOWER,LOW
-NO-S18-017,Noida Sector 18,28.5706,77.3218,2.4,UP,Noida,MACRO,Jio,5,0,ORDINARY_TOWER,LOW
-NO-S62-018,Noida Sector 62,28.6106,77.3618,2.5,UP,Noida,MACRO,Airtel,1,0,ORDINARY_TOWER,LOW
-NO-S125-019,Noida Sector 125,28.5406,77.3318,2.4,UP,Noida,MACRO,Vodafone,1,0,ORDINARY_TOWER,LOW
-NO-C28-020,Noida Central,28.572,77.348,2.3,UP,Noida,MACRO,Jio,1,0,ORDINARY_TOWER,LOW
-NO-C93-021,Noida City Center,28.543,77.315,2.2,UP,Noida,MACRO,Airtel,0,0,ORDINARY_TOWER,LOW
-NO-E8-022,Noida Express East,28.555,77.305,2.1,UP,Noida,MACRO,Vodafone,1,0,ORDINARY_TOWER,LOW
-NO-W21-023,Noida West Avenue,28.531,77.32,2.0,UP,Noida,MACRO,Jio,1,0,ORDINARY_TOWER,LOW
-NO-GH-024,Noida GH Highway,28.498,77.285,2.3,UP,Noida,MACRO,Airtel,0,0,ORDINARY_TOWER,LOW
-GGN-CYB-021,Cyber City,28.4947,77.0889,2.5,Haryana,Gurgaon,MACRO,Vodafone,2,0,ORDINARY_TOWER,LOW
-GGN-MG-022,MG Road,28.479,77.105,2.4,Haryana,Gurgaon,MACRO,Jio,1,0,ORDINARY_TOWER,LOW
-GGN-DLF-023,DLF Cyber Hub,28.462,77.12,2.3,Haryana,Gurgaon,MICRO,Airtel,1,0,ORDINARY_TOWER,LOW
-GGN-IND-024,Industrial Area,28.448,77.135,2.2,Haryana,Gurgaon,MICRO,Vodafone,1,0,ORDINARY_TOWER,LOW
-GGN-HRX-025,Haryana Extn,28.431,77.15,2.1,Haryana,Gurgaon,MICRO,Jio,1,0,ORDINARY_TOWER,LOW
-GGN-SKY-026,Sky Plaza,28.414,77.165,2.0,Haryana,Gurgaon,MICRO,Airtel,1,0,ORDINARY_TOWER,LOW
-FBD-S16-026,Faridabad Sector 16,28.3847,77.3189,2.4,Haryana,Faridabad,MICRO,Vodafone,1,0,ORDINARY_TOWER,LOW
-FBD-S32-027,Faridabad Sector 32,28.365,77.335,2.3,Haryana,Faridabad,MICRO,Jio,1,0,ORDINARY_TOWER,LOW
-FBD-S64-028,Faridabad Sector 64,28.348,77.35,2.2,Haryana,Faridabad,MICRO,Airtel,1,0,ORDINARY_TOWER,LOW
-FBD-IND-029,FBD Industrial,28.332,77.365,2.1,Haryana,Faridabad,MICRO,Vodafone,2,0,ORDINARY_TOWER,LOW
-GZB-IND-029,Ghaziabad Indirapuram,28.6547,77.4389,2.5,UP,Ghaziabad,MICRO,Jio,2,0,ORDINARY_TOWER,LOW
-GZB-VAP-030,Vaishali,28.643,77.45,2.4,UP,Ghaziabad,MICRO,Airtel,0,0,ORDINARY_TOWER,LOW
-GZB-GZB-031,Ghaziabad Central,28.621,77.465,2.3,UP,Ghaziabad,MICRO,Vodafone,0,0,ORDINARY_TOWER,LOW
-GZB-KAN-032,Kanan Garden,28.605,77.48,2.2,UP,Ghaziabad,MICRO,Jio,0,0,ORDINARY_TOWER,LOW
+tower_id   , tower_location           , latitude, longitude, coverage_radius_km, state  , city     , tower_type, provider, calls_originated_count, high_risk_calls, suspected_operation_type, investigation_priority
+DL-CP-001  , Connaught Place Central  ,  28.6328,   77.2197,                2.5, Delhi  , New Delhi, MACRO     , Jio     ,                      3,               0, ORDINARY_TOWER          , LOW
+DL-CP-002  , Palika Bazaar            ,  28.6298,   77.2167,                2.3, Delhi  , New Delhi, MACRO     , Airtel  ,                      3,               0, ORDINARY_TOWER          , LOW
+DL-CP-003  , Barakhamba Road          ,  28.6358,   77.2227,                2.4, Delhi  , New Delhi, MACRO     , Vodafone,                      2,               0, ORDINARY_TOWER          , LOW
+DL-SD-004  , Hauz Khas Village        ,  28.5494,   77.2001,                2.0, Delhi  , New Delhi, MACRO     , Jio     ,                      4,               0, ORDINARY_TOWER          , LOW
+DL-SD-005  , Saket                    ,  28.526 ,   77.182 ,                1.9, Delhi  , New Delhi, MACRO     , Airtel  ,                      0,               0, ORDINARY_TOWER          , LOW
+DL-SD-007  , Saket Mall               ,  28.5294,   77.2201,                1.8, Delhi  , New Delhi, MACRO     , Vodafone,                      0,               0, ORDINARY_TOWER          , LOW
+DL-ED-013  , IP Extension             ,  28.6389,   77.2989,                1.8, Delhi  , New Delhi, MACRO     , Jio     ,                      3,               0, ORDINARY_TOWER          , LOW
+DL-ND-010  , Rohini Sector 7          ,  28.7089,   77.1989,                2.2, Delhi  , New Delhi, MACRO     , Airtel  ,                      3,               0, ORDINARY_TOWER          , LOW
+DL-WD-014  , Janakpuri District Center,  28.6489,   77.0989,                2.1, Delhi  , New Delhi, MACRO     , Vodafone,                      3,               0, ORDINARY_TOWER          , LOW
+DL-WD-015  , Dwarka Sector 21         ,  28.6289,   77.0789,                2.0, Delhi  , New Delhi, MACRO     , Jio     ,                      1,               0, ORDINARY_TOWER          , LOW
+DL-ITO-036 , ITO                      ,  28.6269,   77.2469,                1.9, Delhi  , New Delhi, MACRO     , Airtel  ,                      1,               0, ORDINARY_TOWER          , LOW
+DL-NDLS-035, New Delhi Railway Station,  28.6419,   77.2193,                2.3, Delhi  , New Delhi, MACRO     , Vodafone,                      2,               0, ORDINARY_TOWER          , LOW
+DL-SN-045  , Safdarjung Hospital      ,  28.568 ,   77.175 ,                2.1, Delhi  , New Delhi, MACRO     , Jio     ,                      0,               0, ORDINARY_TOWER          , LOW
+DL-NE-056  , North East Delhi         ,  28.71  ,   77.32  ,                2.0, Delhi  , New Delhi, MACRO     , Airtel  ,                      0,               0, ORDINARY_TOWER          , LOW
+DL-NW-067  , North West Delhi         ,  28.685 ,   77.098 ,                2.2, Delhi  , New Delhi, MACRO     , Vodafone,                      1,               0, ORDINARY_TOWER          , LOW
+NO-S18-017 , Noida Sector 18          ,  28.5706,   77.3218,                2.4, UP     , Noida    , MACRO     , Jio     ,                      5,               0, ORDINARY_TOWER          , LOW
+NO-S62-018 , Noida Sector 62          ,  28.6106,   77.3618,                2.5, UP     , Noida    , MACRO     , Airtel  ,                      1,               0, ORDINARY_TOWER          , LOW
+NO-S125-019, Noida Sector 125         ,  28.5406,   77.3318,                2.4, UP     , Noida    , MACRO     , Vodafone,                      1,               0, ORDINARY_TOWER          , LOW
+NO-C28-020 , Noida Central            ,  28.572 ,   77.348 ,                2.3, UP     , Noida    , MACRO     , Jio     ,                      1,               0, ORDINARY_TOWER          , LOW
+NO-C93-021 , Noida City Center        ,  28.543 ,   77.315 ,                2.2, UP     , Noida    , MACRO     , Airtel  ,                      0,               0, ORDINARY_TOWER          , LOW
+NO-E8-022  , Noida Express East       ,  28.555 ,   77.305 ,                2.1, UP     , Noida    , MACRO     , Vodafone,                      1,               0, ORDINARY_TOWER          , LOW
+NO-W21-023 , Noida West Avenue        ,  28.531 ,   77.32  ,                2.0, UP     , Noida    , MACRO     , Jio     ,                      1,               0, ORDINARY_TOWER          , LOW
+NO-GH-024  , Noida GH Highway         ,  28.498 ,   77.285 ,                2.3, UP     , Noida    , MACRO     , Airtel  ,                      0,               0, ORDINARY_TOWER          , LOW
+GGN-CYB-021, Cyber City               ,  28.4947,   77.0889,                2.5, Haryana, Gurgaon  , MACRO     , Vodafone,                      2,               0, ORDINARY_TOWER          , LOW
+GGN-MG-022 , MG Road                  ,  28.479 ,   77.105 ,                2.4, Haryana, Gurgaon  , MACRO     , Jio     ,                      1,               0, ORDINARY_TOWER          , LOW
+GGN-DLF-023, DLF Cyber Hub            ,  28.462 ,   77.12  ,                2.3, Haryana, Gurgaon  , MICRO     , Airtel  ,                      1,               0, ORDINARY_TOWER          , LOW
+GGN-IND-024, Industrial Area          ,  28.448 ,   77.135 ,                2.2, Haryana, Gurgaon  , MICRO     , Vodafone,                      1,               0, ORDINARY_TOWER          , LOW
+GGN-HRX-025, Haryana Extn             ,  28.431 ,   77.15  ,                2.1, Haryana, Gurgaon  , MICRO     , Jio     ,                      1,               0, ORDINARY_TOWER          , LOW
+GGN-SKY-026, Sky Plaza                ,  28.414 ,   77.165 ,                2.0, Haryana, Gurgaon  , MICRO     , Airtel  ,                      1,               0, ORDINARY_TOWER          , LOW
+FBD-S16-026, Faridabad Sector 16      ,  28.3847,   77.3189,                2.4, Haryana, Faridabad, MICRO     , Vodafone,                      1,               0, ORDINARY_TOWER          , LOW
+FBD-S32-027, Faridabad Sector 32      ,  28.365 ,   77.335 ,                2.3, Haryana, Faridabad, MICRO     , Jio     ,                      1,               0, ORDINARY_TOWER          , LOW
+FBD-S64-028, Faridabad Sector 64      ,  28.348 ,   77.35  ,                2.2, Haryana, Faridabad, MICRO     , Airtel  ,                      1,               0, ORDINARY_TOWER          , LOW
+FBD-IND-029, FBD Industrial           ,  28.332 ,   77.365 ,                2.1, Haryana, Faridabad, MICRO     , Vodafone,                      2,               0, ORDINARY_TOWER          , LOW
+GZB-IND-029, Ghaziabad Indirapuram    ,  28.6547,   77.4389,                2.5, UP     , Ghaziabad, MICRO     , Jio     ,                      2,               0, ORDINARY_TOWER          , LOW
+GZB-VAP-030, Vaishali                 ,  28.643 ,   77.45  ,                2.4, UP     , Ghaziabad, MICRO     , Airtel  ,                      0,               0, ORDINARY_TOWER          , LOW
+GZB-GZB-031, Ghaziabad Central        ,  28.621 ,   77.465 ,                2.3, UP     , Ghaziabad, MICRO     , Vodafone,                      0,               0, ORDINARY_TOWER          , LOW
+GZB-KAN-032, Kanan Garden             ,  28.605 ,   77.48  ,                2.2, UP     , Ghaziabad, MICRO     , Jio     ,                      0,               0, ORDINARY_TOWER          , LOW
