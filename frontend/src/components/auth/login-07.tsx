@@ -5,31 +5,23 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   ArrowRight,
   Eye,
   EyeOff,
   Lock,
-  Mail,
-  Shield,
   User,
+  Phone,
+  Camera,
+  CheckCircle,
+  Loader2,
+  RefreshCw,
 } from "lucide-react";
-import { JSX, SVGProps, useState } from "react";
+import { JSX, SVGProps, useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { authService, LoginResponse } from "@/lib/auth";
 
-const GoogleIcon = (
-  props: JSX.IntrinsicAttributes & SVGProps<SVGSVGElement>
-) => (
-  <svg fill="currentColor" viewBox="0 0 24 24" {...props}>
-    <path d="M3.06364 7.50914C4.70909 4.24092 8.09084 2 12 2C14.6954 2 16.959 2.99095 18.6909 4.60455L15.8227 7.47274C14.7864 6.48185 13.4681 5.97727 12 5.97727C9.39542 5.97727 7.19084 7.73637 6.40455 10.1C6.2045 10.7 6.09086 11.3409 6.09086 12C6.09086 12.6591 6.2045 13.3 6.40455 13.9C7.19084 16.2636 9.39542 18.0227 12 18.0227C13.3454 18.0227 14.4909 17.6682 15.3864 17.0682C16.4454 16.3591 17.15 15.3 17.3818 14.05H12V10.1818H21.4181C21.5364 10.8363 21.6 11.5182 21.6 12.2273C21.6 15.2727 20.5091 17.8363 18.6181 19.5773C16.9636 21.1046 14.7 22 12 22C8.09084 22 4.70909 19.7591 3.06364 16.4909C2.38638 15.1409 2 13.6136 2 12C2 10.3864 2.38638 8.85911 3.06364 7.50914Z" />
-  </svg>
-);
+// Auth step types
+type AuthStep = "credentials" | "otp" | "face" | "success";
 
 const CISLogo = (props: JSX.IntrinsicAttributes & SVGProps<SVGSVGElement>) => (
   <svg
@@ -53,58 +45,287 @@ const CISLogo = (props: JSX.IntrinsicAttributes & SVGProps<SVGSVGElement>) => (
   </svg>
 );
 
-export default function Login07() {
-  const [isVisible, setIsVisible] = useState<boolean>(false);
-  const [role, setRole] = useState<string>("");
-  const router = useRouter();
+// Step indicator component
+const StepIndicator = ({ currentStep }: { currentStep: AuthStep }) => {
+  const steps = [
+    { key: "credentials", label: "Credentials", icon: Lock },
+    { key: "otp", label: "OTP", icon: Phone },
+    { key: "face", label: "Face ID", icon: Camera },
+  ];
 
-  const toggleVisibility = () => setIsVisible((prevState) => !prevState);
+  const getStepStatus = (stepKey: string) => {
+    const stepOrder = ["credentials", "otp", "face", "success"];
+    const currentIndex = stepOrder.indexOf(currentStep);
+    const stepIndex = stepOrder.indexOf(stepKey);
 
-  const handleSignIn = () => {
-    if (role === "admin") {
-      router.push("/admin");
-    } else {
-      router.push("/dashboard");
-    }
+    if (stepIndex < currentIndex) return "completed";
+    if (stepIndex === currentIndex) return "current";
+    return "pending";
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen">
-      <div className="mx-auto w-full max-w-xs space-y-6">
-        <div className="space-y-2 text-center">
-          <CISLogo className="mx-auto h-16 w-16" />
-          <h1 className="text-3xl font-semibold">CIS Portal</h1>
-          <p className="text-muted-foreground">
-            Sign in to access the Cybercrime Intelligence System
-          </p>
-        </div>
+    <div className="flex items-center justify-center gap-2 mb-6">
+      {steps.map((step, index) => {
+        const status = getStepStatus(step.key);
+        const Icon = step.icon;
 
-        <div className="space-y-5">
-          <Button variant="outline" className="w-full justify-center gap-2">
-            <GoogleIcon className="h-4 w-4" />
-            Sign in with Government SSO
-          </Button>
-
-          <div className="flex items-center gap-2">
-            <Separator className="flex-1" />
-            <span className="text-sm text-muted-foreground">
-              or sign in with credentials
-            </span>
-            <Separator className="flex-1" />
+        return (
+          <div key={step.key} className="flex items-center">
+            <div
+              className={`flex items-center justify-center w-8 h-8 rounded-full border-2 transition-all ${
+                status === "completed"
+                  ? "bg-green-500 border-green-500 text-white"
+                  : status === "current"
+                  ? "bg-primary border-primary text-primary-foreground"
+                  : "border-muted-foreground/30 text-muted-foreground/50"
+              }`}
+            >
+              {status === "completed" ? (
+                <CheckCircle size={16} />
+              ) : (
+                <Icon size={14} />
+              )}
+            </div>
+            {index < steps.length - 1 && (
+              <div
+                className={`w-8 h-0.5 mx-1 ${
+                  status === "completed" ? "bg-green-500" : "bg-muted"
+                }`}
+              />
+            )}
           </div>
+        );
+      })}
+    </div>
+  );
+};
 
+export default function Login07() {
+  const router = useRouter();
+
+  // Redirection is now handled by middleware for initial load
+  // But we still handle it after login success below
+
+  // Auth state
+  const [step, setStep] = useState<AuthStep>("credentials");
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Credentials state
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+
+  // OTP state
+  const [otpCode, setOtpCode] = useState(["", "", "", "", "", ""]);
+  const [otpTimer, setOtpTimer] = useState(300); // 5 minutes
+  const otpInputRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+  // User data from login
+  const [loginData, setLoginData] = useState<LoginResponse | null>(null);
+
+  // Countdown timer for OTP
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (step === "otp" && otpTimer > 0) {
+      interval = setInterval(() => {
+        setOtpTimer((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [step, otpTimer]);
+
+  const formatTimer = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
+
+  // Handle credentials submission
+  const handleCredentialsSubmit = async () => {
+    if (!username || !password) {
+      setError("Please enter username and password");
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await authService.login(username, password);
+
+      if (response.success) {
+        setLoginData(response);
+        setStep("otp");
+        setOtpTimer(300); // Reset timer
+      } else {
+        setError(response.message || "Login failed");
+      }
+    } catch (err: unknown) {
+      const errorMessage =
+        err instanceof Error
+          ? err.message
+          : (err as { response?: { data?: { message?: string } } })?.response
+              ?.data?.message || "Invalid credentials";
+      setError(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Handle OTP input
+  const handleOtpChange = (index: number, value: string) => {
+    if (!/^\d*$/.test(value)) return; // Only allow digits
+
+    const newOtp = [...otpCode];
+    newOtp[index] = value.slice(-1); // Only take last digit
+    setOtpCode(newOtp);
+
+    // Auto-focus next input
+    if (value && index < 5) {
+      otpInputRefs.current[index + 1]?.focus();
+    }
+  };
+
+  const handleOtpKeyDown = (
+    index: number,
+    e: React.KeyboardEvent<HTMLInputElement>
+  ) => {
+    if (e.key === "Backspace" && !otpCode[index] && index > 0) {
+      otpInputRefs.current[index - 1]?.focus();
+    }
+  };
+
+  const handleOtpPaste = (e: React.ClipboardEvent) => {
+    e.preventDefault();
+    const pastedData = e.clipboardData.getData("text").slice(0, 6);
+    if (!/^\d+$/.test(pastedData)) return;
+
+    const newOtp = [...otpCode];
+    pastedData.split("").forEach((digit, i) => {
+      if (i < 6) newOtp[i] = digit;
+    });
+    setOtpCode(newOtp);
+  };
+
+  // Handle OTP verification
+  const handleOtpSubmit = async () => {
+    const code = otpCode.join("");
+    if (code.length !== 6) {
+      setError("Please enter the complete 6-digit OTP");
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await authService.verifyOtp(loginData!.userId!, code);
+
+      if (response.success) {
+        // Check if face verification is required
+        if (loginData?.requiresFace && loginData?.user?.faceRegistered) {
+          setStep("face");
+        } else {
+          // Skip face verification, get token directly
+          await completeLogin();
+        }
+      } else {
+        setError(response.message || "Invalid OTP");
+      }
+    } catch (err: unknown) {
+      const errorMessage =
+        err instanceof Error
+          ? err.message
+          : (err as { response?: { data?: { message?: string } } })?.response
+              ?.data?.message || "OTP verification failed";
+      setError(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Handle resend OTP
+  const handleResendOtp = async () => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await authService.resendOtp(loginData!.userId!);
+
+      if (response.success) {
+        setOtpTimer(300);
+        setOtpCode(["", "", "", "", "", ""]);
+        setError(null);
+      } else {
+        setError(response.message || "Failed to resend OTP");
+      }
+    } catch {
+      setError("Failed to resend OTP");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Handle face verification (simplified - skip for now)
+  const handleFaceSkip = async () => {
+    // For now, skip face verification
+    await completeLogin();
+  };
+
+  // Complete login and redirect
+  const completeLogin = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const tokenResponse = await authService.getToken(loginData!.userId!);
+
+      // Store auth data
+      authService.storeAuth(tokenResponse.access_token, tokenResponse.user);
+
+      setStep("success");
+
+      // Redirect based on role
+      setTimeout(() => {
+        const dashboard =
+          tokenResponse.user.role === "administrator" ? "/admin" : "/dashboard";
+        router.push(dashboard);
+      }, 1500);
+    } catch (err: unknown) {
+      const errorMessage =
+        err instanceof Error
+          ? err.message
+          : (err as { response?: { data?: { message?: string } } })?.response
+              ?.data?.message || "Failed to complete login";
+      setError(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [loginData, router]);
+
+  // Render based on current step
+  const renderStep = () => {
+    switch (step) {
+      case "credentials":
+        return (
           <div className="space-y-6">
             <div>
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="username">Username</Label>
               <div className="relative mt-2.5">
                 <Input
-                  id="email"
+                  id="username"
                   className="peer ps-9"
-                  placeholder="officer@police.gov.in"
-                  type="email"
+                  placeholder="Enter your username"
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  onKeyDown={(e) =>
+                    e.key === "Enter" && handleCredentialsSubmit()
+                  }
                 />
                 <div className="text-muted-foreground/80 pointer-events-none absolute inset-y-0 start-0 flex items-center justify-center ps-3 peer-disabled:opacity-50">
-                  <Mail size={16} aria-hidden="true" />
+                  <User size={16} aria-hidden="true" />
                 </div>
               </div>
             </div>
@@ -121,7 +342,12 @@ export default function Login07() {
                   id="password"
                   className="ps-9 pe-9"
                   placeholder="Enter your password"
-                  type={isVisible ? "text" : "password"}
+                  type={isPasswordVisible ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  onKeyDown={(e) =>
+                    e.key === "Enter" && handleCredentialsSubmit()
+                  }
                 />
                 <div className="text-muted-foreground/80 pointer-events-none absolute inset-y-0 start-0 flex items-center justify-center ps-3 peer-disabled:opacity-50">
                   <Lock size={16} aria-hidden="true" />
@@ -129,12 +355,12 @@ export default function Login07() {
                 <button
                   className="text-muted-foreground/80 hover:text-foreground focus-visible:border-ring focus-visible:ring-ring/50 absolute inset-y-0 end-0 flex h-full w-9 items-center justify-center rounded-e-md transition-[color,box-shadow] outline-none focus:z-10 focus-visible:ring-[3px] disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50"
                   type="button"
-                  onClick={toggleVisibility}
-                  aria-label={isVisible ? "Hide password" : "Show password"}
-                  aria-pressed={isVisible}
-                  aria-controls="password"
+                  onClick={() => setIsPasswordVisible(!isPasswordVisible)}
+                  aria-label={
+                    isPasswordVisible ? "Hide password" : "Show password"
+                  }
                 >
-                  {isVisible ? (
+                  {isPasswordVisible ? (
                     <EyeOff size={16} aria-hidden="true" />
                   ) : (
                     <Eye size={16} aria-hidden="true" />
@@ -143,43 +369,206 @@ export default function Login07() {
               </div>
             </div>
 
-            <div>
-              <Label htmlFor="role">Role</Label>
-              <div className="relative mt-2.5">
-                <Select onValueChange={setRole} value={role}>
-                  <SelectTrigger className="w-full ps-9">
-                    <SelectValue placeholder="Select your role" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="user">
-                      <div className="flex items-center gap-2">
-                        <User size={14} />
-                        Officer
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="admin">
-                      <div className="flex items-center gap-2">
-                        <Shield size={14} />
-                        Administrator
-                      </div>
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-                <div className="text-muted-foreground/80 pointer-events-none absolute inset-y-0 start-0 flex items-center justify-center ps-3 peer-disabled:opacity-50">
-                  <User size={16} aria-hidden="true" />
-                </div>
+            <Button
+              className="w-full"
+              onClick={handleCredentialsSubmit}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <>
+                  Continue to Verification
+                  <ArrowRight className="h-4 w-4 ml-2" />
+                </>
+              )}
+            </Button>
+          </div>
+        );
+
+      case "otp":
+        return (
+          <div className="space-y-6">
+            <div className="text-center">
+              <Phone className="h-12 w-12 mx-auto text-primary mb-3" />
+              <h2 className="text-lg font-semibold">OTP Verification</h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                Enter the 6-digit code sent to your registered phone
+              </p>
+              {loginData?.user?.phone && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Phone: {loginData.user.phone.replace(/\d(?=\d{4})/g, "*")}
+                </p>
+              )}
+            </div>
+
+            <div className="flex justify-center gap-2">
+              {otpCode.map((digit, index) => (
+                <Input
+                  key={index}
+                  ref={(el) => {
+                    otpInputRefs.current[index] = el;
+                  }}
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={1}
+                  value={digit}
+                  onChange={(e) => handleOtpChange(index, e.target.value)}
+                  onKeyDown={(e) => handleOtpKeyDown(index, e)}
+                  onPaste={handleOtpPaste}
+                  className="w-12 h-12 text-center text-xl font-bold"
+                />
+              ))}
+            </div>
+
+            <div className="text-center">
+              {otpTimer > 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  Code expires in{" "}
+                  <span className="font-mono font-semibold text-primary">
+                    {formatTimer(otpTimer)}
+                  </span>
+                </p>
+              ) : (
+                <Button
+                  variant="link"
+                  onClick={handleResendOtp}
+                  disabled={isLoading}
+                  className="text-sm"
+                >
+                  <RefreshCw className="h-3 w-3 mr-1" />
+                  Resend OTP
+                </Button>
+              )}
+            </div>
+
+            <Button
+              className="w-full"
+              onClick={handleOtpSubmit}
+              disabled={isLoading || otpCode.some((d) => !d)}
+            >
+              {isLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <>
+                  Verify OTP
+                  <ArrowRight className="h-4 w-4 ml-2" />
+                </>
+              )}
+            </Button>
+
+            <Button
+              variant="ghost"
+              className="w-full"
+              onClick={() => {
+                setStep("credentials");
+                setOtpCode(["", "", "", "", "", ""]);
+                setError(null);
+              }}
+            >
+              Back to Login
+            </Button>
+          </div>
+        );
+
+      case "face":
+        return (
+          <div className="space-y-6">
+            <div className="text-center">
+              <Camera className="h-12 w-12 mx-auto text-primary mb-3" />
+              <h2 className="text-lg font-semibold">Face Verification</h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                Look at the camera for identity verification
+              </p>
+            </div>
+
+            <div className="aspect-video bg-muted rounded-lg flex items-center justify-center">
+              <div className="text-center text-muted-foreground">
+                <Camera className="h-16 w-16 mx-auto mb-2 opacity-50" />
+                <p className="text-sm">Camera Preview</p>
+                <p className="text-xs mt-1">(Face recognition coming soon)</p>
               </div>
             </div>
-          </div>
 
-          <Button className="w-full" onClick={handleSignIn}>
-            Sign in
-            <ArrowRight className="h-4 w-4" />
-          </Button>
-
-          <div className="text-center text-sm text-muted-foreground">
-            Authorized personnel only. All access is monitored.
+            <Button className="w-full" onClick={handleFaceSkip}>
+              {isLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <>
+                  Skip for Now
+                  <ArrowRight className="h-4 w-4 ml-2" />
+                </>
+              )}
+            </Button>
           </div>
+        );
+
+      case "success":
+        return (
+          <div className="space-y-6 text-center">
+            <div className="flex items-center justify-center">
+              <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center">
+                <CheckCircle className="h-10 w-10 text-white" />
+              </div>
+            </div>
+            <div>
+              <h2 className="text-xl font-semibold text-green-600">
+                Login Successful!
+              </h2>
+              <p className="text-sm text-muted-foreground mt-2">
+                Redirecting to dashboard...
+              </p>
+            </div>
+            <Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" />
+          </div>
+        );
+    }
+  };
+
+  return (
+    <div className="flex items-center justify-center min-h-screen">
+      <div className="mx-auto w-full max-w-sm space-y-6 p-6">
+        <div className="space-y-2 text-center">
+          <CISLogo className="mx-auto h-16 w-16" />
+          <h1 className="text-3xl font-semibold">CIS Portal</h1>
+          <p className="text-muted-foreground">
+            Cybercrime Intelligence System
+          </p>
+        </div>
+
+        {step !== "success" && <StepIndicator currentStep={step} />}
+
+        {error && (
+          <div className="bg-destructive/10 border border-destructive/30 text-destructive px-4 py-3 rounded-lg text-sm">
+            {error}
+          </div>
+        )}
+
+        <div className="space-y-5">
+          {step === "credentials" && (
+            <>
+              <Button variant="outline" className="w-full justify-center gap-2">
+                <Lock className="h-4 w-4" />
+                Sign in with Government SSO
+              </Button>
+
+              <div className="flex items-center gap-2">
+                <Separator className="flex-1" />
+                <span className="text-sm text-muted-foreground">
+                  or sign in with credentials
+                </span>
+                <Separator className="flex-1" />
+              </div>
+            </>
+          )}
+
+          {renderStep()}
+
+          {step === "credentials" && (
+            <div className="text-center text-sm text-muted-foreground">
+              Authorized personnel only. All access is monitored.
+            </div>
+          )}
         </div>
       </div>
     </div>
