@@ -48,7 +48,7 @@ export class AdminController {
       if (file) {
         // File uploaded via multipart
         csvPath = path.join(os.tmpdir(), `towers_${Date.now()}.csv`);
-        fs.writeFileSync(csvPath, file.buffer);
+        fs.writeFileSync(csvPath, (file as any).buffer as Buffer);
         tempCreated = true;
       } else if (filePath) {
         // File path provided (for local ingestion)
@@ -99,7 +99,7 @@ export class AdminController {
 
       if (file) {
         csvPath = path.join(os.tmpdir(), `zones_${Date.now()}.csv`);
-        fs.writeFileSync(csvPath, file.buffer);
+        fs.writeFileSync(csvPath, (file as any).buffer as Buffer);
         tempCreated = true;
       } else if (filePath) {
         csvPath = filePath;
@@ -149,7 +149,7 @@ export class AdminController {
 
       if (file) {
         csvPath = path.join(os.tmpdir(), `suspects_${Date.now()}.csv`);
-        fs.writeFileSync(csvPath, file.buffer);
+        fs.writeFileSync(csvPath, (file as any).buffer as Buffer);
         tempCreated = true;
       } else if (filePath) {
         csvPath = filePath;
@@ -175,11 +175,11 @@ export class AdminController {
       };
     } catch (error) {
       this.logger.error(
-        `Suspects ingestion failed: ${error}`,
+        `Suspects ingestion failed: ${error instanceof Error ? error.message : String(error)}`,
         'AdminController',
       );
       throw new HttpException(
-        `Ingestion failed: ${error}`,
+        `Ingestion failed: ${error instanceof Error ? error.message : String(error)}`,
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
@@ -204,7 +204,7 @@ export class AdminController {
 
       if (file) {
         csvPath = path.join(os.tmpdir(), `victims_${Date.now()}.csv`);
-        fs.writeFileSync(csvPath, file.buffer);
+        fs.writeFileSync(csvPath, file.buffer as Buffer);
         tempCreated = true;
       } else if (filePath) {
         csvPath = filePath;
@@ -230,11 +230,11 @@ export class AdminController {
       };
     } catch (error) {
       this.logger.error(
-        `Victims ingestion failed: ${error}`,
+        `Victims ingestion failed: ${error instanceof Error ? error.message : String(error)}`,
         'AdminController',
       );
       throw new HttpException(
-        `Ingestion failed: ${error}`,
+        `Ingestion failed: ${error instanceof Error ? error.message : String(error)}`,
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
@@ -259,7 +259,7 @@ export class AdminController {
 
       if (file) {
         csvPath = path.join(os.tmpdir(), `cdr_${Date.now()}.csv`);
-        fs.writeFileSync(csvPath, file.buffer);
+        fs.writeFileSync(csvPath, file.buffer as Buffer);
         tempCreated = true;
       } else if (filePath) {
         csvPath = filePath;
@@ -284,9 +284,12 @@ export class AdminController {
         message: `Successfully ingested ${result.success.toLocaleString()} CDR records`,
       };
     } catch (error) {
-      this.logger.error(`CDR ingestion failed: ${error}`, 'AdminController');
+      this.logger.error(
+        `CDR ingestion failed: ${error instanceof Error ? error.message : String(error)}`,
+        'AdminController',
+      );
       throw new HttpException(
-        `Ingestion failed: ${error}`,
+        `Ingestion failed: ${error instanceof Error ? error.message : String(error)}`,
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
@@ -314,7 +317,7 @@ export class AdminController {
 
       if (file) {
         csvPath = path.join(os.tmpdir(), `transactions_${Date.now()}.csv`);
-        fs.writeFileSync(csvPath, file.buffer);
+        fs.writeFileSync(csvPath, file.buffer as Buffer);
         tempCreated = true;
       } else if (filePath) {
         csvPath = filePath;
@@ -340,11 +343,11 @@ export class AdminController {
       };
     } catch (error) {
       this.logger.error(
-        `Transactions ingestion failed: ${error}`,
+        `Transactions ingestion failed: ${error instanceof Error ? error.message : String(error)}`,
         'AdminController',
       );
       throw new HttpException(
-        `Ingestion failed: ${error}`,
+        `Ingestion failed: ${error instanceof Error ? error.message : String(error)}`,
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }

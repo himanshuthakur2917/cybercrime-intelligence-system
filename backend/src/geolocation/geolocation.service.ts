@@ -162,25 +162,43 @@ export class GeolocationService {
     );
 
     const query = `
-      MATCH (i:Investigation {id: $invId})-[:CONTAINS]->(s:Suspect {id: $suspectId})-[cdr:CDR_CALL]->()
+      MATCH (i:Investigation {id: $invId})-[:CONTAINS]->(s:Suspect {id: $suspectId})
       
-      // Get tower details for each CDR record
+      // Get historical CDR positions
+      OPTIONAL MATCH (s)-[cdr:CDR_CALL]->()
       OPTIONAL MATCH (i)-[:HAS_TOWER]->(tower:CellTower {towerId: cdr.callerTowerId})
       
-      WITH s, cdr, tower
-      ORDER BY cdr.callStartTime DESC
-      LIMIT 10
+      // Get real-time event positions
+      OPTIONAL MATCH (s)-[:PINGED]->(e:Event)
       
-      WITH s,
-           collect({
-             lat: tower.latitude,
-             lon: tower.longitude,
-             time: cdr.callStartTime,
-             tower_id: cdr.callerTowerId,
-             location: tower.towerLocation
-           }) AS recent_positions
+      WITH s, 
+           CASE 
+             WHEN e IS NOT NULL THEN {
+               lat: e.location.latitude,
+               lon: e.location.longitude,
+               time: toString(e.timestamp),
+               tower_id: e.cell_tower_id,
+               location: 'Real-time Event',
+               type: 'EVENT'
+             }
+             WHEN cdr IS NOT NULL AND tower IS NOT NULL THEN {
+               lat: tower.latitude,
+               lon: tower.longitude,
+               time: cdr.callStartTime,
+               tower_id: cdr.callerTowerId,
+               location: tower.towerLocation,
+               type: 'CDR'
+             }
+             ELSE NULL
+           END AS pos
       
-      WHERE size(recent_positions) > 0
+      WHERE pos IS NOT NULL
+      
+      WITH s, pos
+      ORDER BY pos.time DESC
+      LIMIT 15
+      
+      WITH s, collect(pos) AS recent_positions
       
       RETURN {
         suspect_id: s.id,
@@ -195,8 +213,8 @@ export class GeolocationService {
         movement_pattern: [pos IN recent_positions WHERE pos.location IS NOT NULL | pos.location],
         predicted_location: recent_positions[0].location,
         confidence_level: CASE
-          WHEN size(recent_positions) >= 5 THEN 'HIGH'
-          WHEN size(recent_positions) >= 3 THEN 'MEDIUM'
+          WHEN size(recent_positions) >= 8 THEN 'HIGH'
+          WHEN size(recent_positions) >= 4 THEN 'MEDIUM'
           ELSE 'LOW'
         END
       } AS prediction
@@ -290,53 +308,72 @@ export class GeolocationService {
     );
 
     const query = `
-      MATCH (i:Investigation {id: $invId})-[:CONTAINS]->(caller:Suspect)-[cdr:CDR_CALL]->(receiver:Suspect)
-      WHERE (i)-[:CONTAINS]->(receiver)
+      MATCH (i:Investigation {id: $invId})-[:CONTAINS]->(caller:Suspect)
       
-      // Get caller tower details
+      // Part A: CDR Calls
+      OPTIONAL MATCH (caller)-[cdr:CDR_CALL]->(receiver:Suspect)
+      WHERE (i)-[:CONTAINS]->(receiver)
       OPTIONAL MATCH (i)-[:HAS_TOWER]->(callerTower:CellTower {towerId: cdr.callerTowerId})
-      // Get receiver tower details
       OPTIONAL MATCH (i)-[:HAS_TOWER]->(receiverTower:CellTower {towerId: cdr.receiverTowerId})
       
-      WHERE callerTower IS NOT NULL
+      // Part B: Real-time Events
+      OPTIONAL MATCH (caller)-[:PINGED]->(event:Event)
+      
+      WITH i, caller, cdr, receiver, callerTower, receiverTower, event
+      
+      // Combine results
+      WITH caller, 
+           CASE 
+             WHEN event IS NOT NULL THEN {
+               call_id: 'event-' + toString(id(event)),
+               type: 'EVENT',
+               lat: event.location.latitude,
+               lon: event.location.longitude,
+               time: toString(event.timestamp),
+               risk: CASE WHEN 'TRESPASSED' IN labels(event) THEN 'CRITICAL' ELSE 'MEDIUM' END,
+               info: 'Real-time Signal'
+             }
+             WHEN cdr IS NOT NULL AND callerTower IS NOT NULL THEN {
+               call_id: cdr.callId,
+               type: 'CDR',
+               lat: callerTower.latitude,
+               lon: callerTower.longitude,
+               time: cdr.callStartTime,
+               risk: CASE WHEN cdr.proximityPattern = 'NEAR' THEN 'HIGH' ELSE 'LOW' END,
+               info: 'Tower: ' + callerTower.towerLocation,
+               receiver: { id: receiver.id, name: receiver.name, phone: receiver.phone },
+               receiver_pos: { lat: COALESCE(receiverTower.latitude, 0), lon: COALESCE(receiverTower.longitude, 0) }
+             }
+             ELSE NULL
+           END AS m
+      
+      WHERE m IS NOT NULL
       
       RETURN {
-        call_id: cdr.callId,
+        call_id: m.call_id,
         caller: {
           id: caller.id,
           name: caller.name,
           phone: caller.phone
         },
-        receiver: {
-          id: receiver.id,
-          name: receiver.name,
-          phone: receiver.phone
-        },
+        receiver: m.receiver,
         caller_position: {
-          lat: callerTower.latitude,
-          lon: callerTower.longitude,
-          tower_id: cdr.callerTowerId
+          lat: m.lat,
+          lon: m.lon,
+          tower_id: m.type
         },
-        receiver_position: {
-          lat: COALESCE(receiverTower.latitude, 0),
-          lon: COALESCE(receiverTower.longitude, 0),
-          tower_id: cdr.receiverTowerId
-        },
+        receiver_position: m.receiver_pos,
         tower: {
-          id: callerTower.towerId,
-          location: callerTower.towerLocation,
-          lat: callerTower.latitude,
-          lon: callerTower.longitude
+          id: m.type,
+          location: m.info,
+          lat: m.lat,
+          lon: m.lon
         },
-        proximity_pattern: cdr.proximityPattern,
-        distance_km: cdr.approximateDistanceKm,
-        call_duration: cdr.duration,
-        call_time: cdr.callStartTime,
-        risk_level: CASE
-          WHEN cdr.proximityPattern = 'NEAR' AND cdr.duration > 300 THEN 'HIGH'
-          WHEN cdr.proximityPattern = 'NEAR' THEN 'MEDIUM'
-          ELSE 'LOW'
-        END
+        proximity_pattern: m.type,
+        distance_km: 0,
+        call_duration: 0,
+        call_time: m.time,
+        risk_level: m.risk
       } AS marker
     `;
 

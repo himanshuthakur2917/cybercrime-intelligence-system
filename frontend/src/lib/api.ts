@@ -71,4 +71,9 @@ export const api = {
         `/geolocation/${investigationId}/trajectory/${suspectId}`
       )
     ),
+
+  getInvestigations: () =>
+    getData<{ id: string; name: string; status: string }[]>(
+      axiosInstance.post("/investigations/list")
+    ),
 };

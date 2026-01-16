@@ -14,9 +14,11 @@ import {
   IconSettings,
   IconShieldCheckeredFilled,
   IconStackBack,
+  IconTarget,
   IconTopologyRing,
   IconUsers,
   IconUserShield,
+  IconMapPin,
 } from "@tabler/icons-react";
 
 import { NavMain } from "@/components/dashboard/nav-main";
@@ -65,11 +67,6 @@ export const sidebarData = {
       url: "/admin/warrants",
       icon: IconAward,
     },
-    {
-      title: "Audit Logs",
-      url: "/admin/audits",
-      icon: IconStackBack,
-    },
   ],
   navMain: [
     {
@@ -78,14 +75,9 @@ export const sidebarData = {
       icon: IconChartAreaLine,
     },
     {
-      title: "Analytics",
-      url: "/dashboard/analytics",
-      icon: IconChartBar,
-    },
-    {
       title: "Geolocation Map",
       url: "/dashboard/map",
-      icon: IconSearch,
+      icon: IconMapPin,
     },
     {
       title: "Pattern Analysis",
@@ -95,22 +87,7 @@ export const sidebarData = {
     {
       title: "Suspect Tracking",
       url: "/dashboard/tracking",
-      icon: IconUsers,
-    },
-    {
-      title: "Kingpins Leaderboard",
-      url: "/dashboard/kingpins",
-      icon: IconCrown,
-    },
-    {
-      title: "Fraud Rings",
-      url: "/dashboard/rings",
-      icon: IconTopologyRing,
-    },
-    {
-      title: "AI Briefing",
-      url: "/dashboard/briefs",
-      icon: IconUsers,
+      icon: IconTarget,
     },
     {
       title: "Data Upload",

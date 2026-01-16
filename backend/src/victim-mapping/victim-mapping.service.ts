@@ -262,38 +262,69 @@ export class VictimMappingService {
     );
 
     const query = `
-      MATCH (i:Investigation {id: $invId})-[:HAS_VICTIM]->(v:Victim)
+      MATCH (i:Investigation {id: $invId})
+      
+      // Part A: Call-based patterns
+      MATCH (i)-[:HAS_VICTIM]->(v:Victim)
       MATCH (i)-[:CONTAINS]->(caller:Suspect)-[call:CALLED]->(target:Suspect)
       WHERE target.phone = v.phone AND call.callCount > 3
       
-      RETURN {
-        caller_id: caller.id,
-        caller_name: caller.name,
-        caller_phone: caller.phone,
-        victim_id: v.victimId,
-        victim_name: v.name,
-        victim_phone: v.phone,
-        harassment_type: CASE
-          WHEN call.proximityPattern = 'NEAR' THEN 'PROXIMITY_HARASSMENT'
-          WHEN call.callCount > 20 THEN 'PERSISTENT_HARASSMENT'
-          ELSE 'REPEATED_CONTACT'
-        END,
-        evidence_count: call.callCount,
-        harassment_severity: CASE
-          WHEN call.callCount > 30 THEN 'CRITICAL'
-          WHEN call.callCount > 15 THEN 'HIGH'
-          WHEN call.callCount > 8 THEN 'MEDIUM'
-          ELSE 'LOW'
-        END,
-        recommended_action: CASE
-          WHEN call.callCount > 30 THEN 'IMMEDIATE_ARREST'
-          WHEN call.callCount > 15 THEN 'URGENT_INVESTIGATION'
-          WHEN call.callCount > 8 THEN 'HEIGHTENED_SURVEILLANCE'
-          ELSE 'MONITOR'
-        END
-      } AS pattern
+      WITH i, v, caller, call, [] AS event_patterns
       
-      ORDER BY call.callCount DESC
+      // Part B: Spatial patterns (Trespassing)
+      OPTIONAL MATCH (i)-[:CONTAINS]->(stalker:Suspect)-[:PINGED]->(event:Event:TRESPASSED)
+      
+      WITH v, caller, call, stalker, count(event) AS trespass_count
+      
+      // Create unified pattern list
+      WITH 
+        // Existing call patterns
+        [{
+          caller_id: caller.id,
+          caller_name: caller.name,
+          caller_phone: caller.phone,
+          victim_id: v.victimId,
+          victim_name: v.name,
+          victim_phone: v.phone,
+          harassment_type: CASE
+            WHEN call.proximityPattern = 'NEAR' THEN 'PROXIMITY_HARASSMENT'
+            WHEN call.callCount > 20 THEN 'PERSISTENT_HARASSMENT'
+            ELSE 'REPEATED_CONTACT'
+          END,
+          evidence_count: call.callCount,
+          harassment_severity: CASE
+            WHEN call.callCount > 30 THEN 'CRITICAL'
+            WHEN call.callCount > 15 THEN 'HIGH'
+            WHEN call.callCount > 8 THEN 'MEDIUM'
+            ELSE 'LOW'
+          END,
+          recommended_action: CASE
+            WHEN call.callCount > 30 THEN 'IMMEDIATE_ARREST'
+            WHEN call.callCount > 15 THEN 'URGENT_INVESTIGATION'
+            WHEN call.callCount > 8 THEN 'HEIGHTENED_SURVEILLANCE'
+            ELSE 'MONITOR'
+          END
+        }] + 
+        // Spatial patterns
+        CASE 
+          WHEN stalker IS NOT NULL AND trespass_count > 0 THEN [{
+            caller_id: stalker.id,
+            caller_name: stalker.name,
+            caller_phone: stalker.phone,
+            victim_id: 'GLOBAL', 
+            victim_name: 'Restricted Zone',
+            victim_phone: 'N/A',
+            harassment_type: 'SPATIAL_STALKING',
+            evidence_count: trespass_count,
+            harassment_severity: CASE WHEN trespass_count > 5 THEN 'CRITICAL' ELSE 'HIGH' END,
+            recommended_action: 'INTERCEPT_IMMEDIATELY'
+          }]
+          ELSE []
+        END AS all_patterns
+      
+      UNWIND all_patterns AS pattern
+      RETURN pattern
+      ORDER BY pattern.evidence_count DESC
     `;
 
     try {
@@ -301,10 +332,10 @@ export class VictimMappingService {
         invId: investigationId,
       });
       const patterns = records.map(
-        (r) => r.get('pattern') as HarassmentPattern,
+        (r) => convertNeo4jIntegers(r.get('pattern')) as HarassmentPattern,
       );
       this.logger.success(
-        `Found ${patterns.length} harassment patterns`,
+        `Found ${patterns.length} harassment patterns (including spatial)`,
         'VictimMappingService',
       );
       return patterns;
@@ -331,25 +362,53 @@ export class VictimMappingService {
     );
 
     const query = `
-      MATCH (i:Investigation {id: $invId})-[:CONTAINS]->(s:Suspect {id: $suspectId})-[cdr:CDR_CALL]->(receiver)
+      MATCH (i:Investigation {id: $invId})-[:CONTAINS]->(s:Suspect {id: $suspectId})
       
-      // Get tower coordinates
+      // Get historical CDR points
+      OPTIONAL MATCH (s)-[cdr:CDR_CALL]->(receiver)
       OPTIONAL MATCH (i)-[:HAS_TOWER]->(tower:CellTower {towerId: cdr.callerTowerId})
       
-      RETURN {
-        call_id: cdr.callId,
-        timestamp: cdr.callStartTime,
-        position: {
-          latitude: tower.latitude,
-          longitude: tower.longitude,
-          tower_id: cdr.callerTowerId
-        },
-        tower_location: tower.towerLocation,
-        receiver_phone: receiver.phone,
-        duration_seconds: cdr.duration
-      } AS trajectory
+      // Get real-time Event points
+      OPTIONAL MATCH (s)-[:PINGED]->(event:Event)
       
-      ORDER BY cdr.callStartTime ASC
+      WITH s, cdr, tower, receiver, event
+      
+      // Create unified points
+      WITH 
+        CASE 
+          WHEN event IS NOT NULL THEN {
+            call_id: 'event-' + toString(id(event)),
+            timestamp: toString(event.timestamp),
+            position: {
+              latitude: event.location.latitude,
+              longitude: event.location.longitude,
+              tower_id: event.cell_tower_id
+            },
+            tower_location: 'GPS Signal (' + COALESCE(event.cell_tower_id, 'No Tower') + ')',
+            receiver_phone: 'N/A (Spatial Event)',
+            duration_seconds: 0,
+            type: 'EVENT'
+          }
+          WHEN cdr IS NOT NULL AND tower IS NOT NULL THEN {
+            call_id: cdr.callId,
+            timestamp: cdr.callStartTime,
+            position: {
+              latitude: tower.latitude,
+              longitude: tower.longitude,
+              tower_id: cdr.callerTowerId
+            },
+            tower_location: tower.towerLocation,
+            receiver_phone: receiver.phone,
+            duration_seconds: cdr.duration,
+            type: 'CDR'
+          }
+          ELSE NULL
+        END AS p
+      
+      WHERE p IS NOT NULL
+      
+      RETURN p AS trajectory
+      ORDER BY p.timestamp ASC
     `;
 
     try {
@@ -357,9 +416,11 @@ export class VictimMappingService {
         invId: investigationId,
         suspectId,
       });
-      const points = records.map((r) => r.get('trajectory') as TrajectoryPoint);
+      const points = records.map(
+        (r) => convertNeo4jIntegers(r.get('trajectory')) as TrajectoryPoint,
+      );
       this.logger.success(
-        `Found ${points.length} trajectory points`,
+        `Found ${points.length} unified trajectory points for ${suspectId}`,
         'VictimMappingService',
       );
       return points;

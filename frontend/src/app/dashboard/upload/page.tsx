@@ -34,15 +34,18 @@ interface UploadResult {
 export default function OfficerUploadPage() {
   const [investigationId, setInvestigationId] = useState("");
   const [suspectFile, setSuspectFile] = useState<File | null>(null);
+  const [victimFile, setVictimFile] = useState<File | null>(null);
   const [cdrFile, setCdrFile] = useState<File | null>(null);
   const [transactionFile, setTransactionFile] = useState<File | null>(null);
 
   const [suspectResult, setSuspectResult] = useState<UploadResult | null>(null);
+  const [victimResult, setVictimResult] = useState<UploadResult | null>(null);
   const [cdrResult, setCdrResult] = useState<UploadResult | null>(null);
   const [transactionResult, setTransactionResult] =
     useState<UploadResult | null>(null);
 
   const [suspectLoading, setSuspectLoading] = useState(false);
+  const [victimLoading, setVictimLoading] = useState(false);
   const [cdrLoading, setCdrLoading] = useState(false);
   const [transactionLoading, setTransactionLoading] = useState(false);
 
@@ -141,7 +144,7 @@ export default function OfficerUploadPage() {
         </div>
       </div>
 
-      <div className="grid md:grid-cols-3 gap-6">
+      <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
         {/* Suspects Upload */}
         <div className="p-6 rounded-lg border bg-card space-y-4">
           <div className="flex items-center gap-3">
@@ -153,7 +156,6 @@ export default function OfficerUploadPage() {
               <p className="text-xs text-muted-foreground">From FIR details</p>
             </div>
           </div>
-
           <div className="space-y-2">
             <Label htmlFor="suspect-file">suspects.csv</Label>
             <Input
@@ -166,7 +168,6 @@ export default function OfficerUploadPage() {
               name, phone, alias, role, risk_score
             </p>
           </div>
-
           <Button
             onClick={() =>
               suspectFile &&
@@ -208,6 +209,79 @@ export default function OfficerUploadPage() {
                   <IconX className="h-3 w-3" />
                 )}
                 {suspectResult.success} added
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Victims Upload */}
+        <div className="p-6 rounded-lg border bg-card space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-green-500/10">
+              <IconUser className="h-6 w-6 text-green-500" />
+            </div>
+            <div>
+              <h2 className="font-semibold">Victims</h2>
+              <p className="text-xs text-muted-foreground">
+                From FIR complaint
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="victim-file">victims.csv</Label>
+            <Input
+              id="victim-file"
+              type="file"
+              accept=".csv"
+              onChange={(e) => setVictimFile(e.target.files?.[0] || null)}
+            />
+            <p className="text-xs text-muted-foreground">
+              name, phone, address, incident_date
+            </p>
+          </div>
+
+          <Button
+            onClick={() =>
+              victimFile &&
+              uploadFile(
+                victimFile,
+                "/admin/ingest/victims",
+                setVictimLoading,
+                setVictimResult
+              )
+            }
+            disabled={!victimFile || !investigationId || victimLoading}
+            className="w-full"
+            size="sm"
+          >
+            {victimLoading ? (
+              <>
+                <IconLoader className="h-4 w-4 mr-2 animate-spin" />{" "}
+                Uploading...
+              </>
+            ) : (
+              <>
+                <IconUpload className="h-4 w-4 mr-2" /> Upload
+              </>
+            )}
+          </Button>
+
+          {victimResult && (
+            <div
+              className={`p-2 rounded text-xs ${
+                victimResult.success > 0
+                  ? "bg-green-500/10 text-green-700"
+                  : "bg-red-500/10 text-red-700"
+              }`}
+            >
+              <div className="flex items-center gap-1">
+                {victimResult.success > 0 ? (
+                  <IconCheck className="h-3 w-3" />
+                ) : (
+                  <IconX className="h-3 w-3" />
+                )}
+                {victimResult.success} added
               </div>
             </div>
           )}

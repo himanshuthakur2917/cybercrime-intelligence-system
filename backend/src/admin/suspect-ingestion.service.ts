@@ -79,14 +79,25 @@ export class SuspectIngestionService {
 
       try {
         const values = this.parseCSVLine(line);
-        const row: SuspectRow = {
-          phone: values[headers.indexOf('phone')] || '',
-          name: values[headers.indexOf('name')] || '',
-          risk: values[headers.indexOf('risk')] || 'MEDIUM',
-          alias: values[headers.indexOf('alias')] || undefined,
-          network_role: values[headers.indexOf('network_role')] || undefined,
+        const get = (keys: string[]) => {
+          for (const k of keys) {
+            const idx = headers.indexOf(k);
+            if (idx >= 0) return values[idx];
+          }
+          return '';
         };
-        batch.push(row);
+
+        const row: SuspectRow = {
+          phone: get(['phone', 'phone_number', 'mobile']),
+          name: get(['name', 'suspect_name', 'full_name']),
+          risk: get(['risk', 'risk_level', 'threat_score']) || 'MEDIUM',
+          alias: get(['alias', 'alias_name']) || undefined,
+          network_role: get(['network_role', 'role']) || undefined,
+        };
+
+        if (row.phone) {
+          batch.push(row);
+        }
 
         if (batch.length >= batchSize) {
           const result = await this.insertSuspectBatch(batch, investigationId);
@@ -94,7 +105,7 @@ export class SuspectIngestionService {
           stats.errors += result.errors;
           batch = [];
         }
-      } catch (error) {
+      } catch {
         stats.errors++;
       }
     }
@@ -149,14 +160,25 @@ export class SuspectIngestionService {
 
       try {
         const values = this.parseCSVLine(line);
-        const row: VictimRow = {
-          phone: values[headers.indexOf('phone')] || '',
-          name: values[headers.indexOf('name')] || '',
-          reported_loss:
-            parseFloat(values[headers.indexOf('reported_loss')]) || 0,
-          complaint_date: values[headers.indexOf('complaint_date')] || '',
+        const get = (keys: string[]) => {
+          for (const k of keys) {
+            const idx = headers.indexOf(k);
+            if (idx >= 0) return values[idx];
+          }
+          return '';
         };
-        batch.push(row);
+
+        const row: VictimRow = {
+          phone: get(['phone', 'phone_number', 'victim_phone']),
+          name: get(['name', 'victim_name', 'full_name']),
+          reported_loss:
+            parseFloat(get(['reported_loss', 'loss', 'amount'])) || 0,
+          complaint_date: get(['complaint_date', 'date', 'fir_date']),
+        };
+
+        if (row.phone) {
+          batch.push(row);
+        }
 
         if (batch.length >= batchSize) {
           const result = await this.insertVictimBatch(batch, investigationId);
@@ -164,7 +186,7 @@ export class SuspectIngestionService {
           stats.errors += result.errors;
           batch = [];
         }
-      } catch (error) {
+      } catch {
         stats.errors++;
       }
     }
@@ -220,16 +242,29 @@ export class SuspectIngestionService {
 
       try {
         const values = this.parseCSVLine(line);
-        const row: CDRRow = {
-          caller_phone: values[headers.indexOf('caller_phone')] || '',
-          callee_phone: values[headers.indexOf('callee_phone')] || '',
-          timestamp: values[headers.indexOf('timestamp')] || '',
-          duration_sec: parseInt(values[headers.indexOf('duration_sec')]) || 0,
-          lat: parseFloat(values[headers.indexOf('lat')]) || 0,
-          lon: parseFloat(values[headers.indexOf('lon')]) || 0,
-          cell_tower_id: values[headers.indexOf('cell_tower_id')] || '',
+        const get = (keys: string[]) => {
+          for (const k of keys) {
+            const idx = headers.indexOf(k);
+            if (idx >= 0) return values[idx];
+          }
+          return '';
         };
-        batch.push(row);
+
+        const timestamp = this.extractTimestamp(headers, values);
+
+        const row: CDRRow = {
+          caller_phone: get(['caller_phone', 'caller', 'from_phone']),
+          callee_phone: get(['callee_phone', 'callee', 'to_phone']),
+          timestamp: timestamp,
+          duration_sec: parseInt(get(['duration_sec', 'duration', 'sec'])) || 0,
+          lat: parseFloat(get(['lat', 'latitude'])) || 0,
+          lon: parseFloat(get(['lon', 'longitude'])) || 0,
+          cell_tower_id: get(['cell_tower_id', 'tower_id', 'cid']),
+        };
+
+        if (row.caller_phone && row.callee_phone) {
+          batch.push(row);
+        }
 
         if (batch.length >= batchSize) {
           const result = await this.insertCDRBatch(batch, investigationId);
@@ -244,7 +279,7 @@ export class SuspectIngestionService {
             );
           }
         }
-      } catch (error) {
+      } catch {
         stats.errors++;
       }
     }
@@ -299,16 +334,40 @@ export class SuspectIngestionService {
 
       try {
         const values = this.parseCSVLine(line);
-        const row: TransactionRow = {
-          from_phone: values[headers.indexOf('from_phone')] || '',
-          to_phone: values[headers.indexOf('to_phone')] || '',
-          amount: parseFloat(values[headers.indexOf('amount')]) || 0,
-          timestamp: values[headers.indexOf('timestamp')] || '',
-          type: values[headers.indexOf('type')] || 'UPI',
-          suspicious_score:
-            parseFloat(values[headers.indexOf('suspicious_score')]) || 0,
+        const get = (keys: string[]) => {
+          for (const k of keys) {
+            const idx = headers.indexOf(k);
+            if (idx >= 0) return values[idx];
+          }
+          return '';
         };
-        batch.push(row);
+
+        const timestamp = this.extractTimestamp(headers, values);
+
+        const row: TransactionRow = {
+          from_phone: get([
+            'from_phone',
+            'victim_account',
+            'sender_account',
+            'from_account',
+          ]),
+          to_phone: get([
+            'to_phone',
+            'beneficiary_account',
+            'receiver_account',
+            'to_account',
+          ]),
+          amount: parseFloat(get(['amount', 'txn_amount', 'value'])) || 0,
+          timestamp: timestamp,
+          type: get(['type', 'mode', 'txn_type']) || 'UPI',
+          suspicious_score:
+            parseFloat(get(['suspicious_score', 'risk_score'])) ||
+            (get(['fraud_flag', 'is_fraud']) === 'TRUE' ? 1.0 : 0.1),
+        };
+
+        if (row.from_phone && row.to_phone) {
+          batch.push(row);
+        }
 
         if (batch.length >= batchSize) {
           const result = await this.insertTransactionBatch(
@@ -326,7 +385,7 @@ export class SuspectIngestionService {
             );
           }
         }
-      } catch (error) {
+      } catch {
         stats.errors++;
       }
     }
@@ -358,24 +417,33 @@ export class SuspectIngestionService {
       await this.neo4j.writeCypher(
         `
         UNWIND $batch AS row
-        MERGE (s:GlobalSuspect {phone: row.phone})
-        SET s.name = row.name,
-            s.risk = row.risk,
-            s.alias = row.alias,
-            s.network_role = row.network_role,
+        MERGE (s:Suspect {id: 'suspect_' + row.phone})
+        SET s.phone = row.phone,
+            s.name = row.name,
+            s.riskScore = row.risk,
+            s.aliasNames = row.alias,
+            s.networkRole = row.network_role,
+            s.status = 'ACTIVE',
             s.updatedAt = datetime()
+        
+        // Ensure GlobalSuspect label for cross-investigation tracking
+        SET s:GlobalSuspect
+        
+        // Link to Phone node
+        MERGE (p:Phone {number: row.phone})
+        MERGE (s)-[:HAS_PHONE]->(p)
         
         WITH s, row
         WHERE $investigationId IS NOT NULL
         MERGE (i:Investigation {id: $investigationId})
-        MERGE (i)-[:HAS_SUSPECT]->(s)
+        MERGE (i)-[:CONTAINS]->(s)
         `,
         { batch, investigationId: investigationId || null },
       );
       return { success: batch.length, errors: 0 };
     } catch (error) {
       this.logger.error(
-        `Suspect batch error: ${error}`,
+        `Suspect batch error: ${String(error instanceof Error ? error.message : error)}`,
         'SuspectIngestionService',
       );
       return { success: 0, errors: batch.length };
@@ -393,23 +461,37 @@ export class SuspectIngestionService {
       await this.neo4j.writeCypher(
         `
         UNWIND $batch AS row
-        MERGE (v:Victim {phone: row.phone})
-        SET v.name = row.name,
-            v.reported_loss = row.reported_loss,
+        MERGE (v:Victim {victimId: 'victim_' + row.phone})
+        SET v.phone = row.phone,
+            v.name = row.name,
+            v.totalAmountLost = row.reported_loss,
             v.complaint_date = row.complaint_date,
             v.updatedAt = datetime()
         
-        WITH v, row
+        // Link to Phone node
+        MERGE (p:Phone {number: row.phone})
+        MERGE (v)-[:HAS_PHONE]->(p)
+        
+        // Create a mirror Suspect node for relationship analysis
+        MERGE (s:Suspect {id: 'suspect_' + row.phone})
+        SET s.phone = row.phone,
+            s.name = row.name,
+            s.status = 'VICTIM',
+            s.isVictim = true
+        MERGE (s)-[:HAS_PHONE]->(p)
+        
+        WITH v, s, row
         WHERE $investigationId IS NOT NULL
         MERGE (i:Investigation {id: $investigationId})
         MERGE (i)-[:HAS_VICTIM]->(v)
+        MERGE (i)-[:CONTAINS]->(s)
         `,
         { batch, investigationId: investigationId || null },
       );
       return { success: batch.length, errors: 0 };
     } catch (error) {
       this.logger.error(
-        `Victim batch error: ${error}`,
+        `Victim batch error: ${String(error instanceof Error ? error.message : error)}`,
         'SuspectIngestionService',
       );
       return { success: 0, errors: batch.length };
@@ -428,26 +510,47 @@ export class SuspectIngestionService {
       await this.neo4j.writeCypher(
         `
         UNWIND $batch AS row
-        MERGE (caller:Phone {number: row.caller_phone})
-        MERGE (callee:Phone {number: row.callee_phone})
-        CREATE (caller)-[r:CALLED {
-          timestamp: datetime(row.timestamp),
+        MERGE (caller_p:Phone {number: row.caller_phone})
+        MERGE (callee_p:Phone {number: row.callee_phone})
+        
+        // Link Phone nodes to Phone nodes with CALLED relationship
+        CREATE (caller_p)-[r:CALLED {
+          timestamp: CASE WHEN row.timestamp <> "" THEN datetime(row.timestamp) ELSE datetime() END,
           duration_sec: row.duration_sec,
           location: point({latitude: row.lat, longitude: row.lon}),
           cell_tower_id: row.cell_tower_id
-        }]->(callee)
+        }]->(callee_p)
         
-        WITH caller, callee, row
+        // Also find related suspects and create CDR_CALL for map visualization
+        WITH caller_p, callee_p, row, r
+        OPTIONAL MATCH (s_caller:Suspect)-[:HAS_PHONE]->(caller_p)
+        OPTIONAL MATCH (s_callee:Suspect)-[:HAS_PHONE]->(callee_p)
+        
+        WITH s_caller, s_callee, row, r, caller_p, callee_p
+        WHERE s_caller IS NOT NULL AND s_callee IS NOT NULL
+        CREATE (s_caller)-[cdr:CDR_CALL {
+          callId: 'cdr_' + toString(id(r)),
+          callerTowerId: row.cell_tower_id,
+          callStartTime: toString(r.timestamp),
+          duration: row.duration_sec,
+          approximateDistanceKm: 0.5, // Mock distance
+          proximityPattern: 'NEAR'
+        }]->(s_callee)
+        
+        WITH caller_p, callee_p, row
         WHERE $investigationId IS NOT NULL
         MERGE (i:Investigation {id: $investigationId})
-        MERGE (i)-[:HAS_PHONE]->(caller)
-        MERGE (i)-[:HAS_PHONE]->(callee)
+        MERGE (i)-[:HAS_PHONE]->(caller_p)
+        MERGE (i)-[:HAS_PHONE]->(callee_p)
         `,
         { batch, investigationId: investigationId || null },
       );
       return { success: batch.length, errors: 0 };
     } catch (error) {
-      this.logger.error(`CDR batch error: ${error}`, 'SuspectIngestionService');
+      this.logger.error(
+        `CDR batch error: ${String(error instanceof Error ? error.message : error)}`,
+        'SuspectIngestionService',
+      );
       return { success: 0, errors: batch.length };
     }
   }
@@ -464,27 +567,45 @@ export class SuspectIngestionService {
       await this.neo4j.writeCypher(
         `
         UNWIND $batch AS row
-        MERGE (from:Account {phone: row.from_phone})
-        MERGE (to:Account {phone: row.to_phone})
-        CREATE (from)-[r:TRANSFERRED {
+        MERGE (from_a:Account {phone: row.from_phone})
+        MERGE (to_a:Account {phone: row.to_phone})
+        
+        // Relationship between accounts
+        CREATE (from_a)-[r:TRANSFERRED {
           amount: row.amount,
-          timestamp: datetime(row.timestamp),
+          timestamp: CASE WHEN row.timestamp <> "" THEN datetime(row.timestamp) ELSE datetime() END,
           type: row.type,
           suspicious_score: row.suspicious_score
-        }]->(to)
+        }]->(to_a)
         
-        WITH from, to, row
+        // Find suspects/victims linked to these phones
+        WITH from_a, to_a, row, r
+        OPTIONAL MATCH (s_from:Suspect {phone: row.from_phone})
+        OPTIONAL MATCH (s_to:Suspect {phone: row.to_phone})
+        
+        WITH s_from, s_to, row, r, from_a, to_a
+        WHERE s_from IS NOT NULL AND s_to IS NOT NULL
+        CREATE (s_from)-[t:TRANSACTION {
+          amount: row.amount,
+          date: toString(r.timestamp),
+          suspiciousScore: row.suspicious_score,
+          transactionType: row.type
+        }]->(s_to)
+        
+        WITH from_a, to_a, row
         WHERE $investigationId IS NOT NULL
         MERGE (i:Investigation {id: $investigationId})
-        MERGE (i)-[:HAS_ACCOUNT]->(from)
-        MERGE (i)-[:HAS_ACCOUNT]->(to)
+        MERGE (i)-[:HAS_ACCOUNT]->(from_a)
+        MERGE (i)-[:HAS_ACCOUNT]->(to_a)
+        MERGE (i)-[:CONTAINS]->(from_a)
+        MERGE (i)-[:CONTAINS]->(to_a)
         `,
         { batch, investigationId: investigationId || null },
       );
       return { success: batch.length, errors: 0 };
     } catch (error) {
       this.logger.error(
-        `Transaction batch error: ${error}`,
+        `Transaction batch error: ${String(error instanceof Error ? error.message : error)}`,
         'SuspectIngestionService',
       );
       return { success: 0, errors: batch.length };
@@ -511,5 +632,30 @@ export class SuspectIngestionService {
     }
     result.push(current.trim());
     return result;
+  }
+
+  /**
+   * Helper to extract timestamp from various CSV column formats
+   */
+  private extractTimestamp(headers: string[], values: string[]): string {
+    const get = (key: string) => {
+      const idx = headers.indexOf(key);
+      return idx >= 0 ? values[idx].trim() : '';
+    };
+
+    // 1. Direct timestamp
+    const ts = get('timestamp') || get('datetime');
+    if (ts) return ts;
+
+    // 2. Date and Time separately
+    const date = get('date');
+    const time = get('time');
+    if (date && time) {
+      // Handle "2025-12-17" and "14:23:45"
+      return `${date}T${time}`;
+    }
+    if (date) return date;
+
+    return '';
   }
 }

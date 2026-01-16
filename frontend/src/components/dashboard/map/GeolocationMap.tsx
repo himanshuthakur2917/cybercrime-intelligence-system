@@ -271,7 +271,64 @@ const GeolocationMap: React.FC<GeolocationMapProps> = ({
         }}
         style={{ width: "100%", height: "100%" }}
         mapStyle="mapbox://styles/mapbox/dark-v11"
-        onClick={handleMapClick}
+        onClick={(e) => {
+          const feature = e.features && e.features[0];
+          if (feature) {
+            const { id } = feature.properties as { id: string };
+            const type = feature.layer?.id;
+
+            if (type === "caller-points") {
+              const marker = validMarkers.find((m) => m.call_id === id);
+              if (marker) {
+                setSelectedId(id);
+                setPopupInfo({
+                  type: "caller",
+                  data: marker,
+                  lng: e.lngLat.lng,
+                  lat: e.lngLat.lat,
+                });
+              }
+            } else if (type === "tower-symbols") {
+              const tower = validTowers.find((t) => t.tower_id === id);
+              if (tower) {
+                setPopupInfo({
+                  type: "tower",
+                  data: tower,
+                  lng: tower.longitude,
+                  lat: tower.latitude,
+                });
+              }
+            } else if (type === "convergence-points") {
+              const point = validConvergence.find(
+                (p) => `conv-${p.victim_id}` === id
+              );
+              if (point) {
+                setSelectedId(id);
+                setPopupInfo({
+                  type: "convergence",
+                  data: point,
+                  lng: point.convergence_lon,
+                  lat: point.convergence_lat,
+                });
+              }
+            }
+          } else {
+            handleMapClick();
+          }
+        }}
+        onMouseMove={(e) => {
+          const canvas = e.target.getCanvas();
+          if (e.features && e.features.length > 0) {
+            canvas.style.cursor = "pointer";
+          } else {
+            canvas.style.cursor = "";
+          }
+        }}
+        interactiveLayerIds={[
+          "caller-points",
+          "tower-symbols",
+          "convergence-points",
+        ]}
         reuseMaps
       >
         <NavigationControl position="top-right" showCompass showZoom />
@@ -336,110 +393,135 @@ const GeolocationMap: React.FC<GeolocationMapProps> = ({
           />
         </Source>
 
-        {/* Cell Towers */}
-        {validTowers.map((tower, idx) => (
-          <Marker
-            key={tower.tower_id || `tower-${idx}`}
-            longitude={tower.longitude}
-            latitude={tower.latitude}
-            onClick={(e) => {
-              e.originalEvent.stopPropagation();
-              setPopupInfo({
-                type: "tower",
-                data: tower,
-                lng: tower.longitude,
-                lat: tower.latitude,
-              });
+        {/* Cell Towers Layer */}
+        <Source
+          id="cell-towers"
+          type="geojson"
+          data={{
+            type: "FeatureCollection",
+            features: validTowers.map((t) => ({
+              type: "Feature",
+              properties: { id: t.tower_id, name: t.location },
+              geometry: {
+                type: "Point",
+                coordinates: [t.longitude, t.latitude],
+              },
+            })),
+          }}
+        >
+          <Layer
+            id="tower-symbols"
+            type="symbol"
+            layout={{
+              "icon-image": "communications-tower",
+              "icon-size": 1.2,
+              "text-field": "📡",
+              "text-size": 18,
+              "icon-allow-overlap": true,
             }}
-          >
-            <div
-              className="text-xl cursor-pointer hover:scale-110 transition-transform"
-              style={{ opacity: selectedId === null ? 1 : 0.3 }}
-            >
-              📡
-            </div>
-          </Marker>
-        ))}
+            paint={{
+              "text-opacity": selectedId === null ? 1 : 0.3,
+            }}
+          />
+        </Source>
 
-        {/* Caller Markers */}
-        {validMarkers.map((marker, idx) => {
-          const isHighlighted = isConnectedToSelected(marker.call_id);
-          return (
-            <Marker
-              key={marker.call_id || `marker-${idx}`}
-              longitude={marker.caller_position.lon}
-              latitude={marker.caller_position.lat}
-              anchor="bottom"
-              onClick={(e) => {
-                e.originalEvent.stopPropagation();
-                setSelectedId(marker.call_id);
-                setPopupInfo({
-                  type: "caller",
-                  data: marker,
-                  lng: marker.caller_position.lon,
-                  lat: marker.caller_position.lat,
-                });
-              }}
-            >
-              <div
-                className="text-2xl cursor-pointer hover:scale-110 transition-transform"
-                style={{
-                  opacity: isHighlighted ? 1 : 0.2,
-                  filter: `drop-shadow(0 2px 3px ${getRiskColor(
-                    marker.risk_level
-                  )})`,
-                }}
-              >
-                📍
-              </div>
-            </Marker>
-          );
-        })}
+        {/* Callers/Suspects Layer */}
+        <Source
+          id="callers"
+          type="geojson"
+          data={{
+            type: "FeatureCollection",
+            features: validMarkers.map((m) => ({
+              type: "Feature",
+              properties: {
+                id: m.call_id,
+                risk: m.risk_level,
+                isHighlighted: isConnectedToSelected(m.call_id),
+              },
+              geometry: {
+                type: "Point",
+                coordinates: [m.caller_position.lon, m.caller_position.lat],
+              },
+            })),
+          }}
+        >
+          <Layer
+            id="caller-points"
+            type="circle"
+            paint={{
+              "circle-radius": [
+                "case",
+                ["==", ["get", "isHighlighted"], true],
+                8,
+                5,
+              ],
+              "circle-color": [
+                "case",
+                ["==", ["get", "risk"], "HIGH"],
+                "#dc2626",
+                ["==", ["get", "risk"], "MEDIUM"],
+                "#f97316",
+                "#3b82f6",
+              ],
+              "circle-stroke-width": 2,
+              "circle-stroke-color": "#ffffff",
+              "circle-opacity": [
+                "case",
+                ["==", ["get", "isHighlighted"], true],
+                1,
+                0.2,
+              ],
+            }}
+          />
+        </Source>
 
-        {/* Convergence Points (Victims) */}
-        {validConvergence.map((point, idx) => {
-          const isHighlighted =
-            selectedId === `conv-${point.victim_id}` || selectedId === null;
-          return (
-            <Marker
-              key={point.victim_id || `conv-${idx}`}
-              longitude={point.convergence_lon}
-              latitude={point.convergence_lat}
-              onClick={(e) => {
-                e.originalEvent.stopPropagation();
-                setSelectedId(`conv-${point.victim_id}`);
-                setPopupInfo({
-                  type: "convergence",
-                  data: point,
-                  lng: point.convergence_lon,
-                  lat: point.convergence_lat,
-                });
-              }}
-            >
-              <div
-                className="cursor-pointer hover:scale-110 transition-transform"
-                style={{ opacity: isHighlighted ? 1 : 0.2 }}
-              >
-                <div
-                  className="w-8 h-8 rounded-full border-3 flex items-center justify-center text-sm"
-                  style={{
-                    borderColor: getSeverityColor(point.zone_severity),
-                    backgroundColor: `${getSeverityColor(
-                      point.zone_severity
-                    )}30`,
-                    borderWidth: 3,
-                  }}
-                >
-                  {point.zone_severity === "CRITICAL"
-                    ? "🚨"
-                    : point.zone_severity === "HIGH"
-                    ? "⚠️"
-                    : "👤"}
-                </div>
-              </div>
-            </Marker>
-          );
-        })}
+        {/* Convergence/Victims Layer */}
+        <Source
+          id="convergence"
+          type="geojson"
+          data={{
+            type: "FeatureCollection",
+            features: validConvergence.map((p) => ({
+              type: "Feature",
+              properties: {
+                id: `conv-${p.victim_id}`,
+                severity: p.zone_severity,
+                isHighlighted:
+                  selectedId === `conv-${p.victim_id}` || selectedId === null,
+              },
+              geometry: {
+                type: "Point",
+                coordinates: [p.convergence_lon, p.convergence_lat],
+              },
+            })),
+          }}
+        >
+          <Layer
+            id="convergence-points"
+            type="circle"
+            paint={{
+              "circle-radius": 12,
+              "circle-color": [
+                "case",
+                ["==", ["get", "severity"], "CRITICAL"],
+                "#dc2626",
+                ["==", ["get", "severity"], "HIGH"],
+                "#ea580c",
+                ["==", ["get", "severity"], "MEDIUM"],
+                "#eab308",
+                "#16a34a",
+              ],
+              "circle-stroke-width": 3,
+              "circle-stroke-color": "#ffffff",
+              "circle-opacity": [
+                "case",
+                ["==", ["get", "isHighlighted"], true],
+                0.7,
+                0.15,
+              ],
+            }}
+          />
+        </Source>
 
         {/* Popup */}
         {popupInfo && (
