@@ -10,6 +10,8 @@
 !.yarn/releases
 !.yarn/versions
 
+/src/app/dashboard/unused-tabs
+
 # testing
 /coverage
 

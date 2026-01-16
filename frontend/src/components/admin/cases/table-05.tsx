@@ -48,11 +48,15 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { Case, CasePriority, CaseStatus } from "@/types/cases";
-import { mockCases } from "@/data/mockCases";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
 type Status = CasePriority | CaseStatus;
 
-const priorityConfig: Record<CasePriority, { label: string; className: string }> = {
+const priorityConfig: Record<
+  CasePriority,
+  { label: string; className: string }
+> = {
   low: {
     label: "Low",
     className:
@@ -215,9 +219,10 @@ const columns: ColumnDef<Case>[] = [
   },
 ];
 
-const data: Case[] = mockCases;
-
 export default function Table05() {
+  const [data, setData] = useState<Case[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [sorting, setSorting] = useState<SortingState>([]);
   const [rowSelection, setRowSelection] = useState({});
   const [globalFilter, setGlobalFilter] = useState("");
@@ -225,9 +230,31 @@ export default function Table05() {
   const [pageIndex, setPageIndex] = useState(0);
   const tableRef = useRef<any>(null);
 
-  const filteredData = statusFilter === "all" 
-    ? data 
-    : data.filter(item => item.status === statusFilter);
+  // Fetch cases from API
+  useEffect(() => {
+    const fetchCases = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const url =
+          statusFilter === "all"
+            ? `${API_URL}/cases`
+            : `${API_URL}/cases?status=${statusFilter}`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error("Failed to fetch cases");
+        const cases = await res.json();
+        setData(cases);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Unknown error");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCases();
+  }, [statusFilter]);
+
+  const filteredData = data;
 
   const table = useReactTable({
     data: filteredData,
@@ -250,9 +277,10 @@ export default function Table05() {
       },
     },
     onPaginationChange: (updater) => {
-      const newPagination = typeof updater === 'function' 
-        ? updater({ pageIndex, pageSize: 10 })
-        : updater;
+      const newPagination =
+        typeof updater === "function"
+          ? updater({ pageIndex, pageSize: 10 })
+          : updater;
       setPageIndex(newPagination.pageIndex);
     },
   });
@@ -267,10 +295,36 @@ export default function Table05() {
   const pageCount = table.getPageCount();
   const currentPage = pageIndex + 1;
 
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-destructive mb-4">{error}</p>
+        <Button variant="outline" onClick={() => window.location.reload()}>
+          Retry
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div className=" w-full space-y-4">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as CaseStatus | "all")}>
+        <Select
+          value={statusFilter}
+          onValueChange={(value) =>
+            setStatusFilter(value as CaseStatus | "all")
+          }
+        >
           <SelectTrigger className="h-8 w-48">
             <SelectValue placeholder="Filter by status" />
           </SelectTrigger>
@@ -278,7 +332,9 @@ export default function Table05() {
             <SelectItem value="all">All Status</SelectItem>
             <SelectItem value="pending">Pending</SelectItem>
             <SelectItem value="assigned">Assigned</SelectItem>
-            <SelectItem value="under_investigation">Under Investigation</SelectItem>
+            <SelectItem value="under_investigation">
+              Under Investigation
+            </SelectItem>
             <SelectItem value="verified">Verified</SelectItem>
             <SelectItem value="closed">Closed</SelectItem>
             <SelectItem value="archived">Archived</SelectItem>
@@ -296,9 +352,12 @@ export default function Table05() {
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow className="bg-muted hover:bg-muted"  key={headerGroup.id}>
+              <TableRow
+                className="bg-muted hover:bg-muted"
+                key={headerGroup.id}
+              >
                 {headerGroup.headers.map((header) => (
-                  <TableHead  key={header.id}>
+                  <TableHead key={header.id}>
                     {header.isPlaceholder
                       ? null
                       : flexRender(

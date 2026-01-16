@@ -31,7 +31,9 @@ export class SupabaseService implements OnModuleInit {
 
   async onModuleInit() {
     const supabaseUrl = this.configService.get<string>('SUPABASE_URL');
-    const supabaseKey = this.configService.get<string>('SUPABASE_KEY');
+    const supabaseKey = this.configService.get<string>(
+      'SUPABASE_SERVICE_ROLE_KEY',
+    );
 
     if (!supabaseUrl || !supabaseKey) {
       this.logger.warn(
@@ -45,13 +47,19 @@ export class SupabaseService implements OnModuleInit {
 
     try {
       // Test connection
-      const { error } = await this.client.from('cell_towers').select('id').limit(1);
+      const { error } = await this.client
+        .from('cell_towers')
+        .select('id')
+        .limit(1);
       if (error && !error.message.includes('does not exist')) {
         throw error;
       }
       this.logger.success('Connected to Supabase', 'SupabaseService');
     } catch (error) {
-      this.logger.error(`Supabase connection test failed: ${error}`, 'SupabaseService');
+      this.logger.error(
+        `Supabase connection test failed: ${error}`,
+        'SupabaseService',
+      );
     }
   }
 
@@ -68,7 +76,10 @@ export class SupabaseService implements OnModuleInit {
    */
   async checkGeofence(lat: number, lon: number): Promise<string[]> {
     if (!this.client) {
-      this.logger.warn('Supabase not connected, skipping geofence check', 'SupabaseService');
+      this.logger.warn(
+        'Supabase not connected, skipping geofence check',
+        'SupabaseService',
+      );
       return [];
     }
 
@@ -78,11 +89,14 @@ export class SupabaseService implements OnModuleInit {
     });
 
     if (error) {
-      this.logger.error(`Geofence check error: ${error.message}`, 'SupabaseService');
+      this.logger.error(
+        `Geofence check error: ${error.message}`,
+        'SupabaseService',
+      );
       return [];
     }
 
-    return (data as GeofenceResult[] || []).map((r) => r.zone_name);
+    return ((data as GeofenceResult[]) || []).map((r) => r.zone_name);
   }
 
   /**
@@ -107,7 +121,10 @@ export class SupabaseService implements OnModuleInit {
       .select('id');
 
     if (error) {
-      this.logger.error(`Cell tower insert error: ${error.message}`, 'SupabaseService');
+      this.logger.error(
+        `Cell tower insert error: ${error.message}`,
+        'SupabaseService',
+      );
       throw error;
     }
 
@@ -133,7 +150,10 @@ export class SupabaseService implements OnModuleInit {
       .select('id');
 
     if (error) {
-      this.logger.error(`Restricted zone insert error: ${error.message}`, 'SupabaseService');
+      this.logger.error(
+        `Restricted zone insert error: ${error.message}`,
+        'SupabaseService',
+      );
       throw error;
     }
 
@@ -145,7 +165,10 @@ export class SupabaseService implements OnModuleInit {
    */
   async createInvestigation(id: string, name: string): Promise<void> {
     if (!this.client) {
-      this.logger.warn('Supabase not connected, skipping SQL investigation create', 'SupabaseService');
+      this.logger.warn(
+        'Supabase not connected, skipping SQL investigation create',
+        'SupabaseService',
+      );
       return;
     }
 
@@ -155,7 +178,10 @@ export class SupabaseService implements OnModuleInit {
     });
 
     if (error) {
-      this.logger.error(`Investigation create error: ${error.message}`, 'SupabaseService');
+      this.logger.error(
+        `Investigation create error: ${error.message}`,
+        'SupabaseService',
+      );
       throw error;
     }
   }
@@ -193,12 +219,13 @@ export class SupabaseService implements OnModuleInit {
       return [];
     }
 
-    const { data, error } = await this.client
-      .from('cell_towers')
-      .select('*');
+    const { data, error } = await this.client.from('cell_towers').select('*');
 
     if (error) {
-      this.logger.error(`Get cell towers error: ${error.message}`, 'SupabaseService');
+      this.logger.error(
+        `Get cell towers error: ${error.message}`,
+        'SupabaseService',
+      );
       return [];
     }
 
@@ -218,7 +245,10 @@ export class SupabaseService implements OnModuleInit {
       .select('*');
 
     if (error) {
-      this.logger.error(`Get restricted zones error: ${error.message}`, 'SupabaseService');
+      this.logger.error(
+        `Get restricted zones error: ${error.message}`,
+        'SupabaseService',
+      );
       return [];
     }
 
