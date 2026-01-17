@@ -1,12 +1,31 @@
-import React from 'react'
-import { AppSidebar } from "@/components/dashboard/app-sidebar"
-import { SiteHeader } from "@/components/dashboard/site-header"
-import {
-  SidebarInset,
-  SidebarProvider,
-} from "@/components/ui/sidebar"
+"use client";
+
+import React from "react";
+import { useAuth } from "@/hooks/use-auth";
+import { AppSidebar } from "@/components/dashboard/app-sidebar";
+import { SiteHeader } from "@/components/dashboard/site-header";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 
 const AdminLayout = ({ children }: { children: React.ReactNode }) => {
+  const { isAuthenticated, isLoading, user } = useAuth();
+
+  // Show loading while hydrating auth state
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="flex flex-col items-center gap-4">
+          <div className="animate-spin h-10 w-10 border-4 border-primary border-t-transparent rounded-full" />
+          <p className="text-muted-foreground">Verifying authorization...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Final safety check (middleware handles routes, but this prevents flashing if client state is somehow inconsistent)
+  if (!isAuthenticated || user?.role !== "administrator") {
+    return null;
+  }
+
   return (
     <SidebarProvider
       style={
@@ -22,7 +41,7 @@ const AdminLayout = ({ children }: { children: React.ReactNode }) => {
         {children}
       </SidebarInset>
     </SidebarProvider>
-  )
-}
+  );
+};
 
-export default AdminLayout
+export default AdminLayout;

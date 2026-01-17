@@ -3,6 +3,10 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { ConfigService } from '@nestjs/config';
 import { LoggerService } from '../common/logger/logger.service';
 
+ getClient(): SupabaseClient {
+    return this.supabase;
+  }
+
 interface GeofenceResult {
   zone_name: string;
 }
@@ -42,6 +46,13 @@ export class SupabaseService implements OnModuleInit {
       );
       return;
     }
+    
+     this.supabase = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    });
 
     this.client = createClient(supabaseUrl, supabaseKey);
 

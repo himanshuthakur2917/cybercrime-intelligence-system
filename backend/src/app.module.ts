@@ -1,11 +1,12 @@
 import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { AuthModule } from './auth/auth.module';
+import { GeolocationModule } from './geolocation/geolocation.module';
+import { InvestigationsModule } from './investigations/investigations.module';
 import { Neo4jModule } from './neo4j/neo4j.module';
 import { SupabaseModule } from './supabase/supabase.module';
-import { ConfigModule } from '@nestjs/config';
-import { InvestigationsModule } from './investigations/investigations.module';
-import { GeolocationModule } from './geolocation/geolocation.module';
 import { VictimMappingModule } from './victim-mapping/victim-mapping.module';
 import { LoggerModule } from './common/logger/logger.module';
 import { AdminModule } from './admin/admin.module';
@@ -18,8 +19,9 @@ import { SuspectsModule } from './suspects/suspects.module';
   imports: [
     ConfigModule.forRoot(),
     LoggerModule,
-    Neo4jModule,
     SupabaseModule,
+    Neo4jModule,
+    AuthModule,
     AdminModule,
     TrackingModule,
     OfficersModule,

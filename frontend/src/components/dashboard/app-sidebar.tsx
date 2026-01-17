@@ -36,11 +36,6 @@ import {
 import { usePathname } from "next/navigation";
 
 export const sidebarData = {
-  user: {
-    name: "shadcn",
-    email: "m@example.com",
-    avatar: "/avatars/shadcn.jpg",
-  },
   adminNav: [
     {
       title: "Data Ingestion",
@@ -135,7 +130,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <NavMain items={navItems} />
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={sidebarData.user} />
+        <NavUser />
       </SidebarFooter>
     </Sidebar>
   );
