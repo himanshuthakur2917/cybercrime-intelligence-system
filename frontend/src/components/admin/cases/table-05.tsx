@@ -190,13 +190,15 @@ const columns: ColumnDef<Case>[] = [
     },
   },
   {
-    accessorKey: "assigned_to",
+    accessorKey: "assignedTo",
     header: "Assigned To",
     cell: ({ row }) => {
-      const assignedTo = row.original.assignedTo;
+      const assignedTo = row.original.assigned_to_name;
       return (
         <span className="text-sm">
-          {assignedTo || (
+          {assignedTo ? (
+            <span className="text-muted-foreground">{assignedTo}</span>
+          ) : (
             <span className="text-muted-foreground">Unassigned</span>
           )}
         </span>
@@ -279,6 +281,7 @@ export default function Table05({
         const res = await fetch(url);
         if (!res.ok) throw new Error("Failed to fetch cases");
         const cases = await res.json();
+        console.log("fetched cases", cases);
         setData(cases);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Unknown error");
@@ -403,7 +406,7 @@ export default function Table05({
                       ? null
                       : flexRender(
                           header.column.columnDef.header,
-                          header.getContext()
+                          header.getContext(),
                         )}
                   </TableHead>
                 ))}
@@ -421,7 +424,7 @@ export default function Table05({
                     <TableCell key={cell.id}>
                       {flexRender(
                         cell.column.columnDef.cell,
-                        cell.getContext()
+                        cell.getContext(),
                       )}
                     </TableCell>
                   ))}
@@ -451,7 +454,7 @@ export default function Table05({
           {Math.min(
             (table.getState().pagination.pageIndex + 1) *
               table.getState().pagination.pageSize,
-            table.getFilteredRowModel().rows.length
+            table.getFilteredRowModel().rows.length,
           )}{" "}
           of {table.getFilteredRowModel().rows.length} entries
         </p>

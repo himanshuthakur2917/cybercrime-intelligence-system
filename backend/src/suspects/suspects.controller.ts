@@ -13,6 +13,18 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { SuspectsService } from './suspects.service';
 import { LoggerService } from '../common/logger/logger.service';
 
+interface MulterFile {
+  fieldname: string;
+  originalname: string;
+  encoding: string;
+  mimetype: string;
+  size: number;
+  destination: string;
+  filename: string;
+  path: string;
+  buffer: Buffer;
+}
+
 @Controller('suspects')
 export class SuspectsController {
   constructor(
@@ -26,7 +38,7 @@ export class SuspectsController {
   @Post('upload')
   @UseInterceptors(FileInterceptor('file'))
   async uploadSuspects(
-    @UploadedFile() file: Express.Multer.File,
+    @UploadedFile() file: MulterFile,
     @Query('user_id') userId: string,
   ) {
     this.logger.log(

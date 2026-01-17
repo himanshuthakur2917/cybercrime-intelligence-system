@@ -73,7 +73,10 @@ export class CasesService {
     private readonly logger: LoggerService,
   ) {}
 
-  async getCases(status?: CaseStatus, createdBy?: string): Promise<Case[]> {
+  async getCases(
+    status?: CaseStatus,
+    createdBy?: string,
+  ): Promise<(Case & { assigned_to_name?: string })[]> {
     const client = this.supabase.getClient();
     if (!client) {
       throw new Error('Supabase not connected');
@@ -94,6 +97,22 @@ export class CasesService {
 
     const { data, error } = await query;
 
+    const { data: usersData, error: usersError } = await client
+      .from('users')
+      .select('id, name')
+      .in(
+        'id',
+        data.map((c) => c.assigned_to),
+      );
+
+    if (usersError) {
+      this.logger.error(
+        `Failed to fetch users: ${usersError.message}`,
+        'CasesService',
+      );
+      throw usersError;
+    }
+
     if (error) {
       this.logger.error(
         `Failed to fetch cases: ${error.message}`,
@@ -102,8 +121,17 @@ export class CasesService {
       throw error;
     }
 
+    const usersMap = new Map(usersData.map((u) => [u.id, u.name]));
+
+    const casesWithNames = data.map((c) => ({
+      ...c,
+      assigned_to_name: usersMap.get(c.assigned_to) || null,
+    }));
+
+    console.log(casesWithNames);
+
     this.logger.log(`Fetched ${data?.length || 0} cases`, 'CasesService');
-    return data || [];
+    return casesWithNames;
   }
 
   async getCase(id: string): Promise<CaseWithNotes | null> {
@@ -254,7 +282,16 @@ export class CasesService {
     }
 
     this.logger.log(`Updated case: ${id}`, 'CasesService');
-    return data;
+    const { data: updatedCaseWithUser } = await client
+      .from('cases')
+      .select('*, assigned_to_user:users!cases_assigned_to_fkey(name)')
+      .eq('id', id)
+      .single();
+
+    return {
+      ...updatedCaseWithUser,
+      assignedTo: updatedCaseWithUser?.assigned_to_user?.name,
+    };
   }
 
   async assignCase(id: string, officerId: string): Promise<Case> {
@@ -285,7 +322,16 @@ export class CasesService {
       `Assigned case ${id} to officer ${officerId}`,
       'CasesService',
     );
-    return data;
+    const { data: assignedCaseWithUser } = await client
+      .from('cases')
+      .select('*, assigned_to_user:users!cases_assigned_to_fkey(name)')
+      .eq('id', id)
+      .single();
+
+    return {
+      ...assignedCaseWithUser,
+      assignedTo: assignedCaseWithUser?.assigned_to_user?.name,
+    };
   }
 
   async verifyCase(id: string, userId: string): Promise<Case> {

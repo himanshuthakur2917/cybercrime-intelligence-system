@@ -15,6 +15,18 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 
+export interface MulterFile {
+  fieldname: string;
+  originalname: string;
+  encoding: string;
+  mimetype: string;
+  size: number;
+  destination: string;
+  filename: string;
+  path: string;
+  buffer: Buffer;
+}
+
 interface IngestionResult {
   success: number;
   errors: number;
@@ -33,10 +45,11 @@ export class AdminController {
    * POST /admin/ingest/towers
    * Upload cell towers CSV to Supabase (PostGIS)
    */
+
   @Post('ingest/towers')
   @UseInterceptors(FileInterceptor('file'))
   async ingestTowers(
-    @UploadedFile() file: Express.Multer.File,
+    @UploadedFile() file: MulterFile,
     @Body('filePath') filePath?: string,
   ): Promise<IngestionResult> {
     this.logger.log('Tower ingestion request received', 'AdminController');
@@ -88,7 +101,7 @@ export class AdminController {
   @Post('ingest/zones')
   @UseInterceptors(FileInterceptor('file'))
   async ingestZones(
-    @UploadedFile() file: Express.Multer.File,
+    @UploadedFile() file: MulterFile,
     @Body('filePath') filePath?: string,
   ): Promise<IngestionResult> {
     this.logger.log('Zones ingestion request received', 'AdminController');
@@ -137,7 +150,7 @@ export class AdminController {
   @Post('ingest/suspects')
   @UseInterceptors(FileInterceptor('file'))
   async ingestSuspects(
-    @UploadedFile() file: Express.Multer.File,
+    @UploadedFile() file: MulterFile,
     @Body('filePath') filePath?: string,
     @Body('investigationId') investigationId?: string,
   ): Promise<IngestionResult> {
@@ -192,7 +205,7 @@ export class AdminController {
   @Post('ingest/victims')
   @UseInterceptors(FileInterceptor('file'))
   async ingestVictims(
-    @UploadedFile() file: Express.Multer.File,
+    @UploadedFile() file: MulterFile,
     @Body('filePath') filePath?: string,
     @Body('investigationId') investigationId?: string,
   ): Promise<IngestionResult> {
@@ -247,7 +260,7 @@ export class AdminController {
   @Post('ingest/cdr')
   @UseInterceptors(FileInterceptor('file'))
   async ingestCDR(
-    @UploadedFile() file: Express.Multer.File,
+    @UploadedFile() file: MulterFile,
     @Body('filePath') filePath?: string,
     @Body('investigationId') investigationId?: string,
   ): Promise<IngestionResult> {
@@ -302,7 +315,7 @@ export class AdminController {
   @Post('ingest/transactions')
   @UseInterceptors(FileInterceptor('file'))
   async ingestTransactions(
-    @UploadedFile() file: Express.Multer.File,
+    @UploadedFile() file: MulterFile,
     @Body('filePath') filePath?: string,
     @Body('investigationId') investigationId?: string,
   ): Promise<IngestionResult> {
