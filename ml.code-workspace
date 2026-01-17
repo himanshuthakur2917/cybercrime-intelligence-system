@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"path": "../../python/ml_engine"
+		},
+		{
+			"path": ".."
+		},
+		{
+			"path": "../../Auto_Generated_intellisence"
+		}
+	],
+	"settings": {}
+}
