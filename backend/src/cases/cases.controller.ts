@@ -34,12 +34,13 @@ export class CasesController {
   async getCases(
     @Query('status') status?: CaseStatus,
     @Query('createdBy') createdBy?: string,
+    @Query('assignedTo') assignedTo?: string,
   ): Promise<Case[]> {
     this.logger.log(
-      `Fetching cases with status: ${status || 'all'}, createdBy: ${createdBy || 'all'}`,
+      `Fetching cases with status: ${status || 'all'}, createdBy: ${createdBy || 'all'}, assignedTo: ${assignedTo || 'all'}`,
       'CasesController',
     );
-    return this.casesService.getCases(status, createdBy);
+    return this.casesService.getCases(status, createdBy, assignedTo);
   }
 
   @Get(':id')

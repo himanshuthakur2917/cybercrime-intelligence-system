@@ -76,6 +76,7 @@ export class CasesService {
   async getCases(
     status?: CaseStatus,
     createdBy?: string,
+    assignedTo?: string,
   ): Promise<(Case & { assigned_to_name?: string })[]> {
     const client = this.supabase.getClient();
     if (!client) {
@@ -93,6 +94,10 @@ export class CasesService {
 
     if (createdBy) {
       query = query.eq('created_by', createdBy);
+    }
+
+    if (assignedTo) {
+      query = query.eq('assigned_to', assignedTo);
     }
 
     const { data, error } = await query;
