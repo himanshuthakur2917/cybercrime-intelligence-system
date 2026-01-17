@@ -3,13 +3,20 @@
 import { useState, useCallback } from "react";
 import Table05 from "@/components/admin/cases/table-05";
 import CreateCaseDialog from "@/components/admin/cases/CreateCaseDialog";
+import CaseDetailsDialog from "@/components/admin/cases/CaseDetailsDialog";
+import EditCaseDialog from "@/components/admin/cases/EditCaseDialog";
 import { Button } from "@/components/ui/button";
 import { IconPlus } from "@tabler/icons-react";
+import { Case } from "@/types/cases";
 
 // TODO: Get this from auth context
 const ADMIN_USER_ID = "74eb9bcc-a4fd-49b9-8f5d-b5d8e9a18e67";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
 export default function CasesPage() {
+  const [selectedCase, setSelectedCase] = useState<Case | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -17,6 +24,21 @@ export default function CasesPage() {
     // Trigger refresh by updating key
     setRefreshKey((prev) => prev + 1);
   }, []);
+
+  const handleViewCase = (caseData: Case) => {
+    setSelectedCase(caseData);
+    setDetailsOpen(true);
+  };
+  const handleEditCase = (caseData: Case) => {
+    setSelectedCase(caseData);
+    setEditOpen(true);
+  };
+  const handleDeleteCase = async (id: string) => {
+    if (confirm("Delete this case?")) {
+      await fetch(`${API_URL}/cases/${id}`, { method: "DELETE" });
+      window.location.reload();
+    }
+  };
 
   return (
     <div className="flex flex-1 flex-col">
@@ -30,13 +52,29 @@ export default function CasesPage() {
             </Button>
           </div>
 
-          <Table05 key={refreshKey} />
+          <Table05
+            onViewCase={handleViewCase}
+            onEditCase={handleEditCase}
+            onDeleteCase={handleDeleteCase}
+          />
 
           <CreateCaseDialog
             open={isCreateDialogOpen}
             onOpenChange={setIsCreateDialogOpen}
             onSuccess={handleCaseCreated}
             adminUserId={ADMIN_USER_ID}
+          />
+
+          <CaseDetailsDialog
+            caseData={selectedCase}
+            open={detailsOpen}
+            onOpenChange={setDetailsOpen}
+          />
+          <EditCaseDialog
+            caseData={selectedCase}
+            open={editOpen}
+            onOpenChange={setEditOpen}
+            onSuccess={() => window.location.reload()}
           />
         </div>
       </div>

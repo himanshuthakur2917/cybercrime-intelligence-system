@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
 import { LoggerService } from '../common/logger/logger.service';
+import * as bcrypt from 'bcrypt';
 
 export interface Officer {
   id?: string;
@@ -25,15 +26,22 @@ export interface Officer {
 }
 
 export interface CreateOfficerDto {
-  badge_number: string;
+  // User table fields
+  username: string;
+  password: string;
   name: string;
   email: string;
-  phone?: string;
-  rank?: string;
+  phone: string;
   department?: string;
+
+  // Officer fields
+  badge_number: string;
+  rank?: string;
   station?: string;
   role?: 'ADMIN' | 'SENIOR_OFFICER' | 'OFFICER' | 'TRAINEE';
-  permissions?: string[];
+
+  // Admin tracking
+  created_by: string;
 }
 
 export interface UpdateOfficerDto {
@@ -139,7 +147,8 @@ export class OfficersService {
   }
 
   /**
-   * Create a new officer
+   * Create a new officer by inserting into users table
+   * Database trigger automatically creates officer record
    */
   async createOfficer(dto: CreateOfficerDto): Promise<Officer> {
     const client = this.supabase.getClient();
@@ -147,44 +156,65 @@ export class OfficersService {
       throw new Error('Supabase not connected');
     }
 
-    // Check for duplicate badge number
-    const existing = await this.getOfficerByBadge(dto.badge_number);
-    if (existing) {
-      throw new Error(`Officer with badge ${dto.badge_number} already exists`);
+    // Check for duplicate username
+    const { data: existingUser } = await client
+      .from('users')
+      .select('id')
+      .eq('username', dto.username)
+      .single();
+
+    if (existingUser) {
+      throw new Error(`Username ${dto.username} already exists`);
     }
 
-    const officer = {
-      badge_number: dto.badge_number,
-      name: dto.name,
-      email: dto.email,
-      phone: dto.phone || null,
-      rank: dto.rank || 'Constable',
-      department: dto.department || 'Cyber Crime',
-      station: dto.station || null,
-      role: dto.role || 'OFFICER',
-      status: 'ACTIVE',
-      permissions: dto.permissions || ['view_cases', 'upload_data'],
-    };
+    // Hash password
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(dto.password, saltRounds);
 
-    const { data, error } = await client
-      .from('officers')
-      .insert(officer)
+    // Insert into users table
+    const { data: userData, error: userError } = await client
+      .from('users')
+      .insert({
+        username: dto.username,
+        name: dto.name,
+        email: dto.email,
+        password: hashedPassword,
+        phone: dto.phone,
+        role: 'officer',
+        department: dto.department || 'Cyber Crime',
+        created_by: dto.created_by,
+      })
       .select()
       .single();
 
-    if (error) {
+    if (userError) {
       this.logger.error(
-        `Failed to create officer: ${error.message}`,
+        `Failed to create user: ${userError.message}`,
         'OfficersService',
       );
-      throw error;
+      throw userError;
     }
 
-    this.logger.success(
-      `Created officer: ${dto.name} (${dto.badge_number})`,
-      'OfficersService',
-    );
-    return data;
+    // Wait briefly for trigger to execute
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    // Fetch the auto-created officer record
+    const { data: officerData, error: officerError } = await client
+      .from('officers')
+      .select('*')
+      .eq('id', userData.id)
+      .single();
+
+    if (officerError) {
+      this.logger.error(
+        `Failed to fetch officer: ${officerError.message}`,
+        'OfficersService',
+      );
+      throw officerError;
+    }
+
+    this.logger.success(`Created officer: ${dto.name}`, 'OfficersService');
+    return officerData;
   }
 
   /**

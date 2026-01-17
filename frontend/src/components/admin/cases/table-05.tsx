@@ -156,10 +156,12 @@ const columns: ColumnDef<Case>[] = [
     enableHiding: false,
   },
   {
-    accessorKey: "id",
-    header: "Case ID",
+    accessorKey: "case_number",
+    header: "Case Number",
     cell: ({ row }) => (
-      <span className="font-medium">{row.getValue("id")}</span>
+      <span className="font-medium font-mono">
+        {row.getValue("case_number")}
+      </span>
     ),
   },
   {
@@ -180,53 +182,87 @@ const columns: ColumnDef<Case>[] = [
     cell: ({ row }) => <StatusBadge status={row.getValue("status")} />,
   },
   {
-    accessorKey: "createdAt",
+    accessorKey: "created_at",
     header: "Created",
     cell: ({ row }) => {
-      const date = new Date(row.getValue("createdAt"));
+      const date = new Date(row.getValue("created_at"));
       return <span>{date.toLocaleDateString()}</span>;
     },
   },
   {
+    accessorKey: "assigned_to",
+    header: "Assigned To",
+    cell: ({ row }) => {
+      const assignedTo = row.original.assignedTo;
+      return (
+        <span className="text-sm">
+          {assignedTo || (
+            <span className="text-muted-foreground">Unassigned</span>
+          )}
+        </span>
+      );
+    },
+  },
+  {
     id: "actions",
-    cell: () => (
-      <div className="text-right">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8">
-              <MoreHorizontal className="h-4 w-4" />
-              <span className="sr-only">Open menu</span>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem>
-              <Eye className="mr-2 h-4 w-4" />
-              View details
-            </DropdownMenuItem>
-            <DropdownMenuItem>
-              <Pencil className="mr-2 h-4 w-4" />
-              Edit
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-destructive">
-              <Trash2 className="mr-2 h-4 w-4" />
-              Delete
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-    ),
+    cell: ({ row, table }) => {
+      const caseData = row.original;
+      const meta = table.options.meta as {
+        onViewCase: (caseData: Case) => void;
+        onEditCase: (caseData: Case) => void;
+        onDeleteCase: (id: string) => void;
+      };
+
+      return (
+        <div className="text-right">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8">
+                <MoreHorizontal className="h-4 w-4" />
+                <span className="sr-only">Open menu</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => meta?.onViewCase(caseData)}>
+                <Eye className="mr-2 h-4 w-4" />
+                View details
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => meta?.onEditCase(caseData)}>
+                <Pencil className="mr-2 h-4 w-4" />
+                Edit
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className="text-destructive"
+                onClick={() => meta?.onDeleteCase(caseData.id)}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      );
+    },
   },
 ];
 
-export default function Table05() {
+export default function Table05({
+  onViewCase,
+  onEditCase,
+  onDeleteCase,
+}: {
+  onViewCase: (caseData: Case) => void;
+  onEditCase: (caseData: Case) => void;
+  onDeleteCase: (id: string) => void;
+}) {
   const [data, setData] = useState<Case[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sorting, setSorting] = useState<SortingState>([]);
   const [rowSelection, setRowSelection] = useState({});
   const [globalFilter, setGlobalFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState<CaseStatus | "all">("all");
+  const [statusFilters, setStatusFilters] = useState<CaseStatus | "all">("all");
   const [pageIndex, setPageIndex] = useState(0);
   const tableRef = useRef<any>(null);
 
@@ -237,9 +273,9 @@ export default function Table05() {
       setError(null);
       try {
         const url =
-          statusFilter === "all"
+          statusFilters === "all"
             ? `${API_URL}/cases`
-            : `${API_URL}/cases?status=${statusFilter}`;
+            : `${API_URL}/cases?status=${statusFilters}`;
         const res = await fetch(url);
         if (!res.ok) throw new Error("Failed to fetch cases");
         const cases = await res.json();
@@ -252,7 +288,7 @@ export default function Table05() {
     };
 
     fetchCases();
-  }, [statusFilter]);
+  }, [statusFilters]);
 
   const filteredData = data;
 
@@ -283,6 +319,11 @@ export default function Table05() {
           : updater;
       setPageIndex(newPagination.pageIndex);
     },
+    meta: {
+      onViewCase,
+      onEditCase,
+      onDeleteCase,
+    },
   });
 
   tableRef.current = table;
@@ -290,7 +331,7 @@ export default function Table05() {
   // Reset page when filter changes
   useEffect(() => {
     setPageIndex(0);
-  }, [statusFilter]);
+  }, [statusFilters]);
 
   const pageCount = table.getPageCount();
   const currentPage = pageIndex + 1;
@@ -320,9 +361,9 @@ export default function Table05() {
     <div className=" w-full space-y-4">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <Select
-          value={statusFilter}
+          value={statusFilters}
           onValueChange={(value) =>
-            setStatusFilter(value as CaseStatus | "all")
+            setStatusFilters(value as CaseStatus | "all")
           }
         >
           <SelectTrigger className="h-8 w-48">

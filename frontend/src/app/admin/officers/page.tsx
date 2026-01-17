@@ -19,9 +19,45 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { IconPlus, IconRefresh } from "@tabler/icons-react";
+import {
+  IconPlus,
+  IconRefresh,
+  IconEye,
+  IconEyeOff,
+} from "@tabler/icons-react";
+import { z } from "zod";
+
+const officerSchema = z.object({
+  username: z
+    .string()
+    .min(3, "Username must be at least 3 characters")
+    .regex(
+      /^[a-z0-9._]+$/,
+      "Only lowercase letters, numbers, dots, and underscores allowed"
+    ),
+  password: z
+    .string()
+    .min(8, "Password must be at least 8 characters")
+    .regex(
+      /(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
+      "Must include uppercase, lowercase, and a number"
+    ),
+  name: z.string().min(2, "Name must be at least 2 characters"),
+  email: z.string().email("Invalid email address"),
+  phone: z.string().regex(/^\d{10}$/, "Phone must be exactly 10 digits"),
+  badge_number: z
+    .string()
+    .regex(/^CIS-[A-Z0-9-]+$/, "Badge format: CIS-XXX-XXX"),
+  rank: z.string().min(1, "Rank is required"),
+  department: z.string().min(1, "Department is required"),
+  station: z.string().optional(),
+  created_by: z.string().uuid(),
+});
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+
+// TODO: Get this from auth context
+const ADMIN_USER_ID = "74eb9bcc-a4fd-49b9-8f5d-b5d8e9a18e67";
 
 interface Officer {
   id: string;
@@ -45,9 +81,16 @@ export default function OfficersPage() {
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [dialogStep, setDialogStep] = useState(1);
+  const [validationErrors, setValidationErrors] = useState<
+    Record<string, string>
+  >({});
+  const [showPassword, setShowPassword] = useState(false);
 
   // Form state for adding officer
   const [newOfficer, setNewOfficer] = useState({
+    username: "",
+    password: "",
     badge_number: "",
     name: "",
     email: "",
@@ -56,6 +99,7 @@ export default function OfficersPage() {
     department: "Cyber Crime",
     station: "",
     role: "OFFICER",
+    created_by: ADMIN_USER_ID,
   });
 
   const fetchOfficers = useCallback(async () => {
@@ -94,6 +138,8 @@ export default function OfficersPage() {
       }
       setIsAddDialogOpen(false);
       setNewOfficer({
+        username: "",
+        password: "",
         badge_number: "",
         name: "",
         email: "",
@@ -102,11 +148,83 @@ export default function OfficersPage() {
         department: "Cyber Crime",
         station: "",
         role: "OFFICER",
+        created_by: ADMIN_USER_ID,
       });
       fetchOfficers();
     } catch (err) {
       alert(err instanceof Error ? err.message : "Failed to add officer");
     }
+  };
+
+  const validateStep1 = () => {
+    const step1Data = {
+      username: newOfficer.username,
+      password: newOfficer.password,
+      name: newOfficer.name,
+      email: newOfficer.email,
+      phone: newOfficer.phone,
+      // Fill in dummy data for other required fields to pass schema check
+      badge_number: "CIS-DUMMY",
+      rank: newOfficer.rank,
+      department: newOfficer.department,
+      created_by: newOfficer.created_by,
+    };
+
+    const result = officerSchema
+      .pick({
+        username: true,
+        password: true,
+        name: true,
+        email: true,
+        phone: true,
+      })
+      .safeParse(step1Data);
+
+    if (!result.success) {
+      const errors: Record<string, string> = {};
+      result.error.issues.forEach((issue) => {
+        if (issue.path[0]) {
+          errors[issue.path[0].toString()] = issue.message;
+        }
+      });
+      setValidationErrors(errors);
+      return false;
+    }
+
+    setValidationErrors({});
+    return true;
+  };
+
+  const validateStep2 = () => {
+    const result = officerSchema.safeParse(newOfficer);
+
+    if (!result.success) {
+      const errors: Record<string, string> = {};
+      result.error.issues.forEach((issue) => {
+        if (issue.path[0]) {
+          errors[issue.path[0].toString()] = issue.message;
+        }
+      });
+      setValidationErrors(errors);
+      return false;
+    }
+
+    setValidationErrors({});
+    return true;
+  };
+
+  const handleNextStep = () => {
+    if (!validateStep1()) {
+      return;
+    }
+    setDialogStep(2);
+  };
+
+  const handleAddOfficerClick = async () => {
+    if (!validateStep2()) {
+      return;
+    }
+    await handleAddOfficer();
   };
 
   const handleDeactivate = async (id: string, name: string) => {
@@ -210,7 +328,13 @@ export default function OfficersPage() {
           </Button>
 
           {/* Add Officer Dialog */}
-          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+          <Dialog
+            open={isAddDialogOpen}
+            onOpenChange={(open) => {
+              setIsAddDialogOpen(open);
+              if (!open) setDialogStep(1);
+            }}
+          >
             <DialogTrigger asChild>
               <Button>
                 <IconPlus className="h-4 w-4 mr-2" />
@@ -219,119 +343,317 @@ export default function OfficersPage() {
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">
               <DialogHeader>
-                <DialogTitle>Add New Officer</DialogTitle>
+                <DialogTitle>
+                  Add New Officer - Step {dialogStep} of 2
+                </DialogTitle>
               </DialogHeader>
               <div className="grid gap-4 py-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="badge">Badge Number *</Label>
-                  <Input
-                    id="badge"
-                    placeholder="CIS-OFF-XXX"
-                    value={newOfficer.badge_number}
-                    onChange={(e) =>
-                      setNewOfficer({
-                        ...newOfficer,
-                        badge_number: e.target.value,
-                      })
-                    }
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="name">Full Name *</Label>
-                  <Input
-                    id="name"
-                    placeholder="Det. John Doe"
-                    value={newOfficer.name}
-                    onChange={(e) =>
-                      setNewOfficer({ ...newOfficer, name: e.target.value })
-                    }
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="email">Email *</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="officer@police.gov.in"
-                    value={newOfficer.email}
-                    onChange={(e) =>
-                      setNewOfficer({ ...newOfficer, email: e.target.value })
-                    }
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="phone">Phone</Label>
-                  <Input
-                    id="phone"
-                    placeholder="9876543210"
-                    value={newOfficer.phone}
-                    onChange={(e) =>
-                      setNewOfficer({ ...newOfficer, phone: e.target.value })
-                    }
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="rank">Rank</Label>
-                    <Select
-                      value={newOfficer.rank}
-                      onValueChange={(v) =>
-                        setNewOfficer({ ...newOfficer, rank: v })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Constable">Constable</SelectItem>
-                        <SelectItem value="ASI">ASI</SelectItem>
-                        <SelectItem value="Sub Inspector">
-                          Sub Inspector
-                        </SelectItem>
-                        <SelectItem value="Inspector">Inspector</SelectItem>
-                        <SelectItem value="Superintendent">
-                          Superintendent
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="role">Role</Label>
-                    <Select
-                      value={newOfficer.role}
-                      onValueChange={(v) =>
-                        setNewOfficer({ ...newOfficer, role: v })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="TRAINEE">Trainee</SelectItem>
-                        <SelectItem value="OFFICER">Officer</SelectItem>
-                        <SelectItem value="SENIOR_OFFICER">
-                          Senior Officer
-                        </SelectItem>
-                        <SelectItem value="ADMIN">Admin</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="station">Station</Label>
-                  <Input
-                    id="station"
-                    placeholder="Cyber Cell Unit 1"
-                    value={newOfficer.station}
-                    onChange={(e) =>
-                      setNewOfficer({ ...newOfficer, station: e.target.value })
-                    }
-                  />
-                </div>
+                {/* Step 1: Account & Basic Info */}
+                {dialogStep === 1 && (
+                  <>
+                    <div className="grid gap-2">
+                      <Label
+                        htmlFor="username"
+                        className={
+                          validationErrors.username ? "text-destructive" : ""
+                        }
+                      >
+                        Username *
+                      </Label>
+                      <Input
+                        id="username"
+                        placeholder="john.doe"
+                        className={
+                          validationErrors.username
+                            ? "border-destructive focus-visible:ring-destructive"
+                            : ""
+                        }
+                        value={newOfficer.username}
+                        onChange={(e) =>
+                          setNewOfficer({
+                            ...newOfficer,
+                            username: e.target.value
+                              .toLowerCase()
+                              .replace(/[^a-z0-9._]/g, ""),
+                          })
+                        }
+                      />
+                      {validationErrors.username && (
+                        <p className="text-xs text-destructive">
+                          {validationErrors.username}
+                        </p>
+                      )}
+                    </div>
+                    <div className="grid gap-2">
+                      <Label
+                        htmlFor="password"
+                        className={
+                          validationErrors.password ? "text-destructive" : ""
+                        }
+                      >
+                        Password *
+                      </Label>
+                      <div className="relative">
+                        <Input
+                          id="password"
+                          type={showPassword ? "text" : "password"}
+                          placeholder="Strong password"
+                          className={`pr-10 ${
+                            validationErrors.password
+                              ? "border-destructive focus-visible:ring-destructive"
+                              : ""
+                          }`}
+                          value={newOfficer.password}
+                          onChange={(e) =>
+                            setNewOfficer({
+                              ...newOfficer,
+                              password: e.target.value,
+                            })
+                          }
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        >
+                          {showPassword ? (
+                            <IconEyeOff className="h-4 w-4" />
+                          ) : (
+                            <IconEye className="h-4 w-4" />
+                          )}
+                        </button>
+                      </div>
+                      {validationErrors.password && (
+                        <p className="text-xs text-destructive">
+                          {validationErrors.password}
+                        </p>
+                      )}
+                    </div>
+                    <div className="grid gap-2">
+                      <Label
+                        htmlFor="name"
+                        className={
+                          validationErrors.name ? "text-destructive" : ""
+                        }
+                      >
+                        Full Name *
+                      </Label>
+                      <Input
+                        id="name"
+                        placeholder="Det. John Doe"
+                        className={
+                          validationErrors.name
+                            ? "border-destructive focus-visible:ring-destructive"
+                            : ""
+                        }
+                        value={newOfficer.name}
+                        onChange={(e) =>
+                          setNewOfficer({ ...newOfficer, name: e.target.value })
+                        }
+                      />
+                      {validationErrors.name && (
+                        <p className="text-xs text-destructive">
+                          {validationErrors.name}
+                        </p>
+                      )}
+                    </div>
+                    <div className="grid gap-2">
+                      <Label
+                        htmlFor="email"
+                        className={
+                          validationErrors.email ? "text-destructive" : ""
+                        }
+                      >
+                        Email *
+                      </Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        placeholder="officer@police.gov.in"
+                        className={
+                          validationErrors.email
+                            ? "border-destructive focus-visible:ring-destructive"
+                            : ""
+                        }
+                        value={newOfficer.email}
+                        onChange={(e) =>
+                          setNewOfficer({
+                            ...newOfficer,
+                            email: e.target.value,
+                          })
+                        }
+                      />
+                      {validationErrors.email && (
+                        <p className="text-xs text-destructive">
+                          {validationErrors.email}
+                        </p>
+                      )}
+                    </div>
+                    <div className="grid gap-2">
+                      <Label
+                        htmlFor="phone"
+                        className={
+                          validationErrors.phone ? "text-destructive" : ""
+                        }
+                      >
+                        Phone *
+                      </Label>
+                      <Input
+                        id="phone"
+                        placeholder="9876543210"
+                        className={
+                          validationErrors.phone
+                            ? "border-destructive focus-visible:ring-destructive"
+                            : ""
+                        }
+                        value={newOfficer.phone}
+                        maxLength={10}
+                        pattern="\d{10}"
+                        onChange={(e) =>
+                          setNewOfficer({
+                            ...newOfficer,
+                            phone: e.target.value.replace(/\D/g, ""),
+                          })
+                        }
+                      />
+                      {validationErrors.phone && (
+                        <p className="text-xs text-destructive">
+                          {validationErrors.phone}
+                        </p>
+                      )}
+                    </div>
+                  </>
+                )}
+
+                {/* Step 2: Officer Details */}
+                {dialogStep === 2 && (
+                  <>
+                    <div className="grid gap-2">
+                      <Label
+                        htmlFor="badge"
+                        className={
+                          validationErrors.badge_number
+                            ? "text-destructive"
+                            : ""
+                        }
+                      >
+                        Badge Number *
+                      </Label>
+                      <Input
+                        id="badge"
+                        placeholder="CIS-OFF-XXX"
+                        className={
+                          validationErrors.badge_number
+                            ? "border-destructive focus-visible:ring-destructive"
+                            : ""
+                        }
+                        value={newOfficer.badge_number}
+                        onChange={(e) =>
+                          setNewOfficer({
+                            ...newOfficer,
+                            badge_number: e.target.value,
+                          })
+                        }
+                      />
+                      {validationErrors.badge_number && (
+                        <p className="text-xs text-destructive">
+                          {validationErrors.badge_number}
+                        </p>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="grid gap-2">
+                        <Label htmlFor="rank">Rank</Label>
+                        <Select
+                          value={newOfficer.rank}
+                          onValueChange={(v) =>
+                            setNewOfficer({ ...newOfficer, rank: v })
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Constable">Constable</SelectItem>
+                            <SelectItem value="ASI">ASI</SelectItem>
+                            <SelectItem value="Sub Inspector">
+                              Sub Inspector
+                            </SelectItem>
+                            <SelectItem value="Inspector">Inspector</SelectItem>
+                            <SelectItem value="Superintendent">
+                              Superintendent
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="department">Department</Label>
+                      <Input
+                        id="department"
+                        placeholder="Cyber Crime"
+                        value={newOfficer.department}
+                        onChange={(e) =>
+                          setNewOfficer({
+                            ...newOfficer,
+                            department: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="station">Station</Label>
+                      <Input
+                        id="station"
+                        placeholder="Cyber Cell Unit 1"
+                        value={newOfficer.station}
+                        onChange={(e) =>
+                          setNewOfficer({
+                            ...newOfficer,
+                            station: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+                  </>
+                )}
               </div>
-              <Button onClick={handleAddOfficer} className="w-full">
-                Add Officer
-              </Button>
+
+              {/* Step Indicator */}
+              <div className="flex items-center justify-center gap-2 py-2">
+                <div
+                  className={`h-2 w-2 rounded-full ${
+                    dialogStep === 1 ? "bg-primary" : "bg-muted"
+                  }`}
+                />
+                <div
+                  className={`h-2 w-2 rounded-full ${
+                    dialogStep === 2 ? "bg-primary" : "bg-muted"
+                  }`}
+                />
+              </div>
+
+              {/* Navigation Buttons */}
+              <div className="flex gap-2">
+                {dialogStep > 1 && (
+                  <Button
+                    variant="outline"
+                    onClick={() => setDialogStep(dialogStep - 1)}
+                    className="flex-1"
+                  >
+                    Back
+                  </Button>
+                )}
+                {dialogStep < 2 ? (
+                  <Button onClick={handleNextStep} className="flex-1">
+                    Next
+                  </Button>
+                ) : (
+                  <Button onClick={handleAddOfficerClick} className="flex-1">
+                    Add Officer
+                  </Button>
+                )}
+              </div>
             </DialogContent>
           </Dialog>
         </div>

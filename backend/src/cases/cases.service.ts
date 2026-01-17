@@ -54,7 +54,7 @@ export interface UpdateCaseDto {
   description?: string;
   status?: CaseStatus;
   priority?: CasePriority;
-  assigned_to?: string;
+  assigned_to?: string | null;
 }
 
 export interface AssignCaseDto {
@@ -217,9 +217,30 @@ export class CasesService {
       throw new Error('Supabase not connected');
     }
 
+    // Clean the DTO - convert empty strings to null for nullable foreign keys
+    const cleanedDto: Record<string, unknown> = { ...dto };
+    if (dto.assigned_to === '' || dto.assigned_to === null) {
+      // Explicitly set to null to unassign in the database
+      cleanedDto.assigned_to = null;
+    }
+
+    // Build update object only with defined values
+    const updateData: Partial<UpdateCaseDto> = {};
+    if (cleanedDto.title !== undefined)
+      updateData.title = cleanedDto.title as string;
+    if (cleanedDto.description !== undefined)
+      updateData.description = cleanedDto.description as string | undefined;
+    if (cleanedDto.status !== undefined)
+      updateData.status = cleanedDto.status as CaseStatus;
+    if (cleanedDto.priority !== undefined)
+      updateData.priority = cleanedDto.priority as CasePriority;
+    // Include assigned_to if it's defined OR explicitly set to null
+    if (cleanedDto.assigned_to !== undefined)
+      updateData.assigned_to = cleanedDto.assigned_to as string | null;
+
     const { data, error } = await client
       .from('cases')
-      .update(dto)
+      .update(updateData)
       .eq('id', id)
       .select()
       .single();

@@ -12,6 +12,7 @@ import { AdminModule } from './admin/admin.module';
 import { TrackingModule } from './tracking/tracking.module';
 import { OfficersModule } from './officers/officers.module';
 import { CasesModule } from './cases/cases.module';
+import { SuspectsModule } from './suspects/suspects.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { CasesModule } from './cases/cases.module';
     TrackingModule,
     OfficersModule,
     CasesModule,
+    SuspectsModule,
     InvestigationsModule,
     GeolocationModule,
     VictimMappingModule,

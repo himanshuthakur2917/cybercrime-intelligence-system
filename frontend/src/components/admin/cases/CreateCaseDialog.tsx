@@ -7,6 +7,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,6 +19,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
+import { Loader2, AlertCircle } from "lucide-react";
 import type { CasePriority } from "@/types/cases";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
@@ -119,41 +122,67 @@ export default function CreateCaseDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[525px]">
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Create New Case</DialogTitle>
+          <DialogTitle className="text-2xl">Create New Case</DialogTitle>
+          <DialogDescription>
+            Fill in the details below to create a new case in the system
+          </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="grid gap-4 py-4">
-          <div className="grid gap-2">
-            <Label htmlFor="title">Case Title *</Label>
+
+        <Separator className="my-4" />
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Title Input */}
+          <div className="space-y-2">
+            <Label htmlFor="title" className="text-sm font-semibold">
+              Case Title <span className="text-destructive">*</span>
+            </Label>
             <Input
               id="title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="Enter case title"
+              placeholder="e.g., Phishing Attack on Government Portal"
               required
+              className="h-10"
             />
           </div>
 
-          <div className="grid gap-2">
-            <Label htmlFor="description">Description</Label>
+          {/* Description Input */}
+          <div className="space-y-2">
+            <Label htmlFor="description" className="text-sm font-semibold">
+              Description
+            </Label>
             <Textarea
               id="description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Enter case description"
+              placeholder="Provide detailed information about the case..."
               rows={4}
+              className="resize-none"
             />
+            <p className="text-xs text-muted-foreground">
+              Optional: Add any relevant details, evidence, or context
+            </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="priority">Priority</Label>
+          <Separator />
+
+          {/* Priority and Assignment Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <Label
+                htmlFor="priority"
+                className="text-sm font-semibold flex items-center gap-2"
+              >
+                <AlertCircle className="h-4 w-4 text-muted-foreground" />
+                Priority
+              </Label>
               <Select
                 value={priority}
                 onValueChange={(v) => setPriority(v as CasePriority)}
               >
-                <SelectTrigger>
+                <SelectTrigger id="priority" className="h-10">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -165,17 +194,24 @@ export default function CreateCaseDialog({
               </Select>
             </div>
 
-            <div className="grid gap-2">
-              <Label htmlFor="officer">Assign To (Optional)</Label>
+            <div className="space-y-2">
+              <Label htmlFor="officer" className="text-sm font-semibold">
+                Assign To (Optional)
+              </Label>
               <Select
                 value={assignedTo}
                 onValueChange={setAssignedTo}
                 disabled={loadingOfficers}
               >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select officer (optional)" />
+                <SelectTrigger id="officer" className="h-10">
+                  <SelectValue placeholder="Select officer..." />
                 </SelectTrigger>
                 <SelectContent>
+                  {officers.length === 0 && !loadingOfficers && (
+                    <div className="px-2 py-6 text-center text-sm text-muted-foreground">
+                      No active officers available
+                    </div>
+                  )}
                   {officers.map((officer) => (
                     <SelectItem key={officer.id} value={officer.id}>
                       {officer.name} ({officer.badge_number})
@@ -186,9 +222,33 @@ export default function CreateCaseDialog({
             </div>
           </div>
 
-          <Button type="submit" disabled={loading} className="w-full">
-            {loading ? "Creating..." : "Create Case"}
-          </Button>
+          <Separator className="my-4" />
+
+          {/* Action Buttons */}
+          <div className="flex justify-end gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={loading}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={loading || !title.trim()}
+              className="min-w-[140px]"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                "Create Case"
+              )}
+            </Button>
+          </div>
         </form>
       </DialogContent>
     </Dialog>

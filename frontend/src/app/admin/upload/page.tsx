@@ -25,10 +25,13 @@ interface UploadResult {
 export default function AdminUploadPage() {
   const [towerFile, setTowerFile] = useState<File | null>(null);
   const [zoneFile, setZoneFile] = useState<File | null>(null);
+  const [suspectsFile, setSuspectsFile] = useState<File | null>(null);
   const [towerResult, setTowerResult] = useState<UploadResult | null>(null);
   const [zoneResult, setZoneResult] = useState<UploadResult | null>(null);
+  const [suspectsResult, setSuspectsResult] = useState<any>(null);
   const [towerLoading, setTowerLoading] = useState(false);
   const [zoneLoading, setZoneLoading] = useState(false);
+  const [suspectsLoading, setSuspectsLoading] = useState(false);
 
   const handleTowerUpload = async () => {
     if (!towerFile) return;
@@ -74,6 +77,34 @@ export default function AdminUploadPage() {
     }
   };
 
+  const handleSuspectsUpload = async () => {
+    if (!suspectsFile) return;
+    setSuspectsLoading(true);
+    setSuspectsResult(null);
+
+    const formData = new FormData();
+    formData.append("file", suspectsFile);
+    formData.append("user_id", "74eb9bcc-a4fd-49b9-8f5d-b5d8e9a18e67");
+
+    try {
+      const res = await fetch(`${API_URL}/suspects/upload`, {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+      setSuspectsResult(data.data);
+    } catch {
+      setSuspectsResult({
+        total: 0,
+        created: 0,
+        updated: 0,
+        errors: ["Upload failed"],
+      });
+    } finally {
+      setSuspectsLoading(false);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-6 p-6">
       {/* Header */}
@@ -104,7 +135,7 @@ export default function AdminUploadPage() {
         </div>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-6">
+      <div className="grid md:grid-cols-3 gap-6">
         {/* Cell Towers Upload */}
         <div className="p-6 rounded-lg border bg-card space-y-4">
           <div className="flex items-center gap-3">
@@ -241,6 +272,74 @@ export default function AdminUploadPage() {
             </div>
           )}
         </div>
+
+        {/* Suspects Upload */}
+        <div className="p-6 rounded-lg border bg-card space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-purple-500/10">
+              <IconShield className="h-6 w-6 text-purple-500" />
+            </div>
+            <div>
+              <h2 className="font-semibold">Global Suspects</h2>
+              <p className="text-xs text-muted-foreground">
+                Upload to Neo4j database
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="suspects-file">suspects.csv</Label>
+            <Input
+              id="suspects-file"
+              type="file"
+              accept=".csv"
+              onChange={(e) => setSuspectsFile(e.target.files?.[0] || null)}
+            />
+            <p className="text-xs text-muted-foreground">
+              Required: phone, name, risk, alias, network_role
+            </p>
+          </div>
+
+          <Button
+            onClick={handleSuspectsUpload}
+            disabled={!suspectsFile || suspectsLoading}
+            className="w-full"
+          >
+            {suspectsLoading ? (
+              <>
+                <IconLoader className="h-4 w-4 mr-2 animate-spin" />{" "}
+                Uploading...
+              </>
+            ) : (
+              <>
+                <IconUpload className="h-4 w-4 mr-2" /> Upload Suspects
+              </>
+            )}
+          </Button>
+
+          {suspectsResult && (
+            <div
+              className={`p-3 rounded-lg text-sm ${
+                suspectsResult.created + suspectsResult.updated > 0
+                  ? "bg-green-500/10 text-green-700"
+                  : "bg-red-500/10 text-red-700"
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                {suspectsResult.created + suspectsResult.updated > 0 ? (
+                  <IconCheck className="h-4 w-4" />
+                ) : (
+                  <IconX className="h-4 w-4" />
+                )}
+                <span>Upload Complete</span>
+              </div>
+              <div className="mt-1 text-xs">
+                ✨ {suspectsResult.created} new | 🔄 {suspectsResult.updated}{" "}
+                updated | ✗ {suspectsResult.errors.length} errors
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Instructions */}
@@ -256,8 +355,10 @@ export default function AdminUploadPage() {
             enter sensitive areas
           </li>
           <li>
-            • Data is stored in Supabase PostGIS for fast geospatial queries
+            • <strong>Suspects</strong> are stored in Neo4j as global nodes with
+            duplicate prevention
           </li>
+          <li>• Data is stored in Supabase PostGIS & Neo4j for fast queries</li>
           <li>
             • Duplicates are automatically skipped based on cell_id/zone_id
           </li>
