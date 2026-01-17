@@ -1,0 +1,25 @@
+phone     , name             , risk    , alias          , network_role      , alt_phones                        , status  , last_activity, known_associates                    , total_victim_contacts
+9870000001, "Vikram Singh"   , CRITICAL, Tech Wizard    , CALLER            , "9870001234|9870005678"           , ACTIVE  , 2026-01-07   , "9870000002|9870000003|9897643888", 18
+9870000002, "Priya Sharma"   , HIGH    , Voice Queen    , CALLER            , "9870002345|9870006789"           , ACTIVE  , 2026-01-05   , "9870000001|9870000003|9893081840", 7
+9870000003, "Amit Verma"     , MEDIUM  , The Closer     , CALLER            , "9870003456"                      , ACTIVE  , 2026-01-06   , "9870000001|9870000002"           , 4
+9897643888, "Kiran Kumar"    , CRITICAL, Money King     , FINANCIER         , "9897644999|9897645000"           , ACTIVE  , 2026-01-08   , "9870000001|9893081840|9858829785", 0
+9893081840, "Imran Nair"     , CRITICAL, The Don        , KINGPIN           , "9893082000|9893083000|9893084000", ACTIVE  , 2026-01-08   , "9870000002|9897643888|9838207184", 0
+9858829785, "Amit Nair"      , HIGH    , Ghost          , HACKER            , "9858830000|9858831000"           , ACTIVE  , 2026-01-07   , "9897643888|9854798750"           , 0
+9854798750, "Sanjay Singh"   , MEDIUM  , Code Breaker   , HACKER            , "9854799000"                      , ACTIVE  , 2026-01-06   , "9858829785|9879462413"           , 0
+9838207184, "Mohammad Sharma", HIGH    , Mastermind     , COORDINATOR       , "9838208000|9838209000"           , ACTIVE  , 2026-01-08   , "9893081840|9818439399"           , 0
+9879462413, "Rahul Singh"    , LOW     , Shadow         , MULE              , "9879463000"                      , INACTIVE, 2026-01-02   , "9854798750|9889326592"           , 0
+9818439399, "Deepa Gupta"    , MEDIUM  , Script Master  , SCRIPT_WRITER     , "9818440000"                      , ACTIVE  , 2026-01-05   , "9838207184|9889195593"           , 0
+9889195593, "Mohit Gupta"    , LOW     , Runner         , MULE              , "9889196000"                      , ACTIVE  , 2026-01-04   , "9818439399|9889326592"           , 0
+9889326592, "Rahul Rao"      , LOW     , Drop Boy       , MULE              , "9889327000"                      , INACTIVE, 2025-12-28   , "9889195593|9879462413"           , 0
+9899828514, "Sunita Khan"    , MEDIUM  , Tiger          , SIM_PROVIDER      , "9899829000|9899830000"           , ACTIVE  , 2026-01-07   , "9897643888|9858829785"           , 0
+9870001234, "Ravi Kumar"     , HIGH    , Smooth Talker  , CALLER            , "9870007000"                      , ACTIVE  , 2026-01-06   , "9870000001|9870000002"           , 12
+9870002345, "Neha Yadav"     , MEDIUM  , Sweet Voice    , CALLER            , "9870008000"                      , ACTIVE  , 2026-01-04   , "9870000002|9870001234"           , 5
+9870003456, "Suresh Patel"   , LOW     , Bank Officer   , CALLER            , ""                                , ACTIVE  , 2026-01-05   , "9870000003"                      , 3
+9834567890, "Farooq Ali"     , CRITICAL, Cash Master    , MONEY_LAUNDERER   , "9834568000|9834569000"           , ACTIVE  , 2026-01-08   , "9897643888|9893081840"           , 0
+9856789012, "Ajay Thakur"    , HIGH    , Enforcer       , ENFORCER          , "9856790000"                      , ACTIVE  , 2026-01-07   , "9858829785|9897643888"           , 0
+9867890123, "Pooja Menon"    , MEDIUM  , Data Miner     , DATA_HARVESTER    , "9867891000"                      , ACTIVE  , 2026-01-06   , "9854798750|9858829785"           , 0
+9823456781, "Kabir Hussain"  , CRITICAL, Network Boss   , BROKER            , "9823457000|9823458000"           , ACTIVE  , 2026-01-08   , "9893081840|9897643888"           , 0
+9812345678, "Geeta Sharma"   , LOW     , SIM Girl       , SIM_PROVIDER      , "9812346000"                      , ACTIVE  , 2026-01-03   , "9899828514"                      , 0
+9870005678, "Dinesh Verma"   , HIGH    , Police Voice   , CALLER            , ""                                , ACTIVE  , 2026-01-07   , "9870000001"                      , 8
+9870006789, "Anjali Roy"     , MEDIUM  , Bank Lady      , CALLER            , ""                                , ACTIVE  , 2026-01-05   , "9870000002"                      , 6
+9890123456, "Hassan Sheikh"  , HIGH    , The Boss       , COORDINATOR       , "9890124000|9890125000"           , ACTIVE  , 2026-01-08   , "9838207184|9893081840"           , 0

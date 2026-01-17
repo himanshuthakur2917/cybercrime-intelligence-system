@@ -1,63 +1,368 @@
-'use client';
+"use client";
 
-import React from 'react';
-import { CsvUploader } from '@/components/admin/CsvUploader';
-import { IconDatabase, IconFileImport } from '@tabler/icons-react';
+import React, { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  IconDatabase,
+  IconUpload,
+  IconMapPin,
+  IconShield,
+  IconCheck,
+  IconX,
+  IconLoader,
+} from "@tabler/icons-react";
 
-export default function UploadPage() {
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+
+interface UploadResult {
+  success: number;
+  errors: number;
+  message: string;
+}
+
+export default function AdminUploadPage() {
+  const [towerFile, setTowerFile] = useState<File | null>(null);
+  const [zoneFile, setZoneFile] = useState<File | null>(null);
+  const [suspectsFile, setSuspectsFile] = useState<File | null>(null);
+  const [towerResult, setTowerResult] = useState<UploadResult | null>(null);
+  const [zoneResult, setZoneResult] = useState<UploadResult | null>(null);
+  const [suspectsResult, setSuspectsResult] = useState<any>(null);
+  const [towerLoading, setTowerLoading] = useState(false);
+  const [zoneLoading, setZoneLoading] = useState(false);
+  const [suspectsLoading, setSuspectsLoading] = useState(false);
+
+  const handleTowerUpload = async () => {
+    if (!towerFile) return;
+    setTowerLoading(true);
+    setTowerResult(null);
+
+    const formData = new FormData();
+    formData.append("file", towerFile);
+
+    try {
+      const res = await fetch(`${API_URL}/admin/ingest/towers`, {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+      setTowerResult(data);
+    } catch {
+      setTowerResult({ success: 0, errors: 1, message: "Upload failed" });
+    } finally {
+      setTowerLoading(false);
+    }
+  };
+
+  const handleZoneUpload = async () => {
+    if (!zoneFile) return;
+    setZoneLoading(true);
+    setZoneResult(null);
+
+    const formData = new FormData();
+    formData.append("file", zoneFile);
+
+    try {
+      const res = await fetch(`${API_URL}/admin/ingest/zones`, {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+      setZoneResult(data);
+    } catch {
+      setZoneResult({ success: 0, errors: 1, message: "Upload failed" });
+    } finally {
+      setZoneLoading(false);
+    }
+  };
+
+  const handleSuspectsUpload = async () => {
+    if (!suspectsFile) return;
+    setSuspectsLoading(true);
+    setSuspectsResult(null);
+
+    const formData = new FormData();
+    formData.append("file", suspectsFile);
+    formData.append("user_id", "74eb9bcc-a4fd-49b9-8f5d-b5d8e9a18e67");
+
+    try {
+      const res = await fetch(`${API_URL}/suspects/upload`, {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+      setSuspectsResult(data.data);
+    } catch {
+      setSuspectsResult({
+        total: 0,
+        created: 0,
+        updated: 0,
+        errors: ["Upload failed"],
+      });
+    } finally {
+      setSuspectsLoading(false);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-6 p-6">
       {/* Header */}
       <div className="flex items-center gap-4">
         <div className="p-3 rounded-lg bg-primary/10">
-          <IconFileImport className="h-8 w-8 text-primary" />
+          <IconDatabase className="h-8 w-8 text-primary" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold">📤 Data Upload</h1>
+          <h1 className="text-2xl font-bold">🏛️ Admin Data Ingestion</h1>
           <p className="text-muted-foreground">
-            Upload investigation data CSV files for Neo4j analysis
+            Upload infrastructure data to Supabase PostGIS
           </p>
         </div>
       </div>
 
       {/* Info Banner */}
-      <div className="p-4 rounded-lg bg-blue-500/10 border border-blue-500/20">
+      <div className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/20">
         <div className="flex items-start gap-3">
-          <IconDatabase className="h-5 w-5 text-blue-600 mt-0.5" />
+          <IconShield className="h-5 w-5 text-amber-600 mt-0.5" />
           <div className="text-sm">
-            <p className="font-medium text-blue-700">Supported File Types</p>
-            <ul className="mt-2 space-y-1 text-muted-foreground">
-              <li>• <strong>suspects.csv</strong> - Suspect profiles with phone numbers and accounts</li>
-              <li>• <strong>calls.csv</strong> - Call records with caller/receiver information</li>
-              <li>• <strong>transactions.csv</strong> - Financial transaction records</li>
-              <li>• <strong>cdr_records.csv</strong> - CDR with triangulation and geolocation data</li>
-              <li>• <strong>victims.csv</strong> - Victim profiles and safety status</li>
-              <li>• <strong>cell_towers.csv</strong> - Cell tower locations for mapping</li>
-            </ul>
+            <p className="font-medium text-amber-700">Admin Only</p>
+            <p className="text-muted-foreground mt-1">
+              This page is for uploading system-wide infrastructure data. Cell
+              towers and restricted zones are stored in Supabase PostGIS for
+              geospatial queries.
+            </p>
           </div>
         </div>
       </div>
 
-      {/* Upload Component */}
-      <div className="p-6 rounded-lg border bg-card">
-        <CsvUploader
-          investigationId="default"
-          onUploadComplete={() => {
-            console.log('Upload complete');
-          }}
-        />
+      <div className="grid md:grid-cols-3 gap-6">
+        {/* Cell Towers Upload */}
+        <div className="p-6 rounded-lg border bg-card space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-blue-500/10">
+              <IconMapPin className="h-6 w-6 text-blue-500" />
+            </div>
+            <div>
+              <h2 className="font-semibold">Cell Towers</h2>
+              <p className="text-xs text-muted-foreground">
+                Upload to Supabase PostGIS
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="tower-file">cell_towers.csv</Label>
+            <Input
+              id="tower-file"
+              type="file"
+              accept=".csv"
+              onChange={(e) => setTowerFile(e.target.files?.[0] || null)}
+            />
+            <p className="text-xs text-muted-foreground">
+              Required columns: cell_id, name, lat, lon, range_km
+            </p>
+          </div>
+
+          <Button
+            onClick={handleTowerUpload}
+            disabled={!towerFile || towerLoading}
+            className="w-full"
+          >
+            {towerLoading ? (
+              <>
+                <IconLoader className="h-4 w-4 mr-2 animate-spin" />{" "}
+                Uploading...
+              </>
+            ) : (
+              <>
+                <IconUpload className="h-4 w-4 mr-2" /> Upload Cell Towers
+              </>
+            )}
+          </Button>
+
+          {towerResult && (
+            <div
+              className={`p-3 rounded-lg text-sm ${
+                towerResult.success > 0
+                  ? "bg-green-500/10 text-green-700"
+                  : "bg-red-500/10 text-red-700"
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                {towerResult.success > 0 ? (
+                  <IconCheck className="h-4 w-4" />
+                ) : (
+                  <IconX className="h-4 w-4" />
+                )}
+                <span>{towerResult.message}</span>
+              </div>
+              <div className="mt-1 text-xs">
+                ✓ {towerResult.success.toLocaleString()} ingested | ✗{" "}
+                {towerResult.errors} errors
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Restricted Zones Upload */}
+        <div className="p-6 rounded-lg border bg-card space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-red-500/10">
+              <IconShield className="h-6 w-6 text-red-500" />
+            </div>
+            <div>
+              <h2 className="font-semibold">Restricted Zones</h2>
+              <p className="text-xs text-muted-foreground">
+                Geofence areas for alerts
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="zone-file">restricted_zones.csv</Label>
+            <Input
+              id="zone-file"
+              type="file"
+              accept=".csv"
+              onChange={(e) => setZoneFile(e.target.files?.[0] || null)}
+            />
+            <p className="text-xs text-muted-foreground">
+              Required: zone_id, name, type, threat_level, center_lat,
+              center_lon, radius_km
+            </p>
+          </div>
+
+          <Button
+            onClick={handleZoneUpload}
+            disabled={!zoneFile || zoneLoading}
+            className="w-full"
+          >
+            {zoneLoading ? (
+              <>
+                <IconLoader className="h-4 w-4 mr-2 animate-spin" />{" "}
+                Uploading...
+              </>
+            ) : (
+              <>
+                <IconUpload className="h-4 w-4 mr-2" /> Upload Restricted Zones
+              </>
+            )}
+          </Button>
+
+          {zoneResult && (
+            <div
+              className={`p-3 rounded-lg text-sm ${
+                zoneResult.success > 0
+                  ? "bg-green-500/10 text-green-700"
+                  : "bg-red-500/10 text-red-700"
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                {zoneResult.success > 0 ? (
+                  <IconCheck className="h-4 w-4" />
+                ) : (
+                  <IconX className="h-4 w-4" />
+                )}
+                <span>{zoneResult.message}</span>
+              </div>
+              <div className="mt-1 text-xs">
+                ✓ {zoneResult.success.toLocaleString()} ingested | ✗{" "}
+                {zoneResult.errors} errors
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Suspects Upload */}
+        <div className="p-6 rounded-lg border bg-card space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-purple-500/10">
+              <IconShield className="h-6 w-6 text-purple-500" />
+            </div>
+            <div>
+              <h2 className="font-semibold">Global Suspects</h2>
+              <p className="text-xs text-muted-foreground">
+                Upload to Neo4j database
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="suspects-file">suspects.csv</Label>
+            <Input
+              id="suspects-file"
+              type="file"
+              accept=".csv"
+              onChange={(e) => setSuspectsFile(e.target.files?.[0] || null)}
+            />
+            <p className="text-xs text-muted-foreground">
+              Required: phone, name, risk, alias, network_role
+            </p>
+          </div>
+
+          <Button
+            onClick={handleSuspectsUpload}
+            disabled={!suspectsFile || suspectsLoading}
+            className="w-full"
+          >
+            {suspectsLoading ? (
+              <>
+                <IconLoader className="h-4 w-4 mr-2 animate-spin" />{" "}
+                Uploading...
+              </>
+            ) : (
+              <>
+                <IconUpload className="h-4 w-4 mr-2" /> Upload Suspects
+              </>
+            )}
+          </Button>
+
+          {suspectsResult && (
+            <div
+              className={`p-3 rounded-lg text-sm ${
+                suspectsResult.created + suspectsResult.updated > 0
+                  ? "bg-green-500/10 text-green-700"
+                  : "bg-red-500/10 text-red-700"
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                {suspectsResult.created + suspectsResult.updated > 0 ? (
+                  <IconCheck className="h-4 w-4" />
+                ) : (
+                  <IconX className="h-4 w-4" />
+                )}
+                <span>Upload Complete</span>
+              </div>
+              <div className="mt-1 text-xs">
+                ✨ {suspectsResult.created} new | 🔄 {suspectsResult.updated}{" "}
+                updated | ✗ {suspectsResult.errors.length} errors
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Instructions */}
       <div className="p-4 rounded-lg bg-muted/50 text-sm">
-        <h3 className="font-semibold mb-2">📋 Instructions</h3>
-        <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
-          <li>Drag and drop CSV files or click to browse</li>
-          <li>Files are automatically detected by type based on headers</li>
-          <li>Review detected file types before uploading</li>
-          <li>Click &quot;Upload All&quot; to ingest data into Neo4j</li>
-          <li>Navigate to Dashboard → Geolocation Map to visualize data</li>
-        </ol>
+        <h3 className="font-semibold mb-2">📋 How It Works</h3>
+        <ul className="space-y-1 text-muted-foreground">
+          <li>
+            • <strong>Cell Towers</strong> are used for CDR location
+            triangulation on the map
+          </li>
+          <li>
+            • <strong>Restricted Zones</strong> trigger alerts when suspects
+            enter sensitive areas
+          </li>
+          <li>
+            • <strong>Suspects</strong> are stored in Neo4j as global nodes with
+            duplicate prevention
+          </li>
+          <li>• Data is stored in Supabase PostGIS & Neo4j for fast queries</li>
+          <li>
+            • Duplicates are automatically skipped based on cell_id/zone_id
+          </li>
+        </ul>
       </div>
     </div>
   );

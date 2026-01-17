@@ -1,0 +1,95 @@
+{
+  "fir_details": {
+    "fir_number": "FIR/2026/DL/CYBER/00142",
+    "registration_date": "2026-01-10",
+    "police_station": "Cyber Crime Police Station, South District, Delhi",
+    "sections_applied": ["IPC 420", "IPC 406", "IT Act 66D", "IT Act 66C"],
+    "investigation_officer": "SI Rakesh Sharma (Badge: 4521)",
+    "status": "UNDER_INVESTIGATION"
+  },
+  "victim": {
+    "id": "V001",
+    "name": "Rajendra Kumar Agarwal",
+    "phone": "9876543210",
+    "alternate_phone": "9871234567",
+    "email": "rajendra.agarwal1975@gmail.com",
+    "address": "H-142, Sector 15, Rohini, New Delhi - 110089",
+    "aadhar_hash": "a1b2c3d4e5f6",
+    "pan_number": "ABCPA1234K",
+    "age": 51,
+    "occupation": "Retired Bank Manager",
+    "bank_accounts": [
+      {
+        "bank_name": "State Bank of India",
+        "account_number": "XXXX5678",
+        "branch": "Rohini Sector 15",
+        "ifsc": "SBIN0011234",
+        "account_type": "Savings"
+      }
+    ]
+  },
+  "complaint_summary": {
+    "total_loss": 1847500,
+    "currency": "INR",
+    "fraud_type": "INVESTMENT_FRAUD",
+    "fraud_method": "SOCIAL_ENGINEERING_WHATSAPP",
+    "modus_operandi": [
+      "Victim received WhatsApp message about high-return investment opportunity",
+      "Caller introduced himself as 'Vikram Singh' from 'Golden Wealth Management'",
+      "Initial investment of ₹50,000 showed fake 200% returns in 3 days",
+      "Victim convinced to invest larger amounts progressively",
+      "Multiple calls from different numbers building trust and urgency",
+      "When victim requested withdrawal, website showed 'maintenance'",
+      "All contact numbers became unreachable after final transfer"
+    ],
+    "complaint_date": "2026-01-10",
+    "incident_start_date": "2025-12-15",
+    "incident_end_date": "2026-01-08",
+    "victim_statement": "I received a WhatsApp message on 15th December 2025 about a guaranteed investment scheme. The caller, who called himself Vikram Singh, said he was from Golden Wealth Management and promised 15% weekly returns. He sounded very professional and even sent me fake registration documents. I made an initial investment of Rs 50,000 and within 3 days, my online dashboard showed Rs 1,50,000. This convinced me to invest more. Over the next few weeks, I transferred a total of Rs 18,47,500 in multiple transactions. When I tried to withdraw on 8th January, the website showed 'under maintenance'. All WhatsApp numbers were blocked and the website disappeared."
+  },
+  "suspects": [
+    {
+      "id": "S001",
+      "alias": "Vikram Singh",
+      "phone": "9870000001",
+      "role": "PRIMARY_CALLER",
+      "risk": "CRITICAL",
+      "network_role": "FRONTMAN",
+      "description": "Main contact who initiated fraud, claimed to be investment advisor"
+    },
+    {
+      "id": "S002", 
+      "alias": "Priya Sharma",
+      "phone": "9870000002",
+      "role": "TRUST_BUILDER",
+      "risk": "HIGH",
+      "network_role": "CALLER",
+      "description": "Called as 'relationship manager', built confidence before large transfers"
+    },
+    {
+      "id": "S003",
+      "alias": "Amit Verma",
+      "phone": "9870000003",
+      "role": "CLOSER",
+      "risk": "HIGH", 
+      "network_role": "ENFORCER",
+      "description": "Called with urgency tactics during final large transfers"
+    },
+    {
+      "id": "S004",
+      "alias": "Deepak",
+      "phone": "9870000004",
+      "role": "MULE",
+      "risk": "MEDIUM",
+      "network_role": "MULE",
+      "description": "Account holder where funds were transferred"
+    }
+  ],
+  "evidence": {
+    "whatsapp_screenshots": 12,
+    "call_recordings": 3,
+    "bank_statements": 2,
+    "website_screenshots": 5,
+    "fake_documents_received": ["Registration Certificate", "SEBI License", "Company PAN"]
+  }
+}

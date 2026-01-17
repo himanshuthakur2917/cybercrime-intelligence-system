@@ -130,6 +130,29 @@ export class InvestigationsService {
     }
   }
 
+  async listInvestigations() {
+    this.logger.log('Fetching all investigations', 'InvestigationsService');
+    try {
+      const records = await this.neo4jService.readCypher(
+        `MATCH (i:Investigation) 
+         RETURN i.id as id, i.name as name, i.status as status 
+         ORDER BY i.createdAt DESC`,
+        {},
+      );
+      return records.map((r) => ({
+        id: r.get('id'),
+        name: r.get('name'),
+        status: r.get('status'),
+      }));
+    } catch (error) {
+      this.logger.error(
+        'Failed to list investigations',
+        'InvestigationsService',
+      );
+      return [];
+    }
+  }
+
   async ingestData(
     investigationId: string,
     data: ExtendedCsvData,

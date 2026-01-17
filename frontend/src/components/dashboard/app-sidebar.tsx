@@ -7,15 +7,18 @@ import {
   IconChartAreaLine,
   IconChartBar,
   IconCrown,
+  IconDatabase,
   IconFileDescription,
   IconHelp,
   IconSearch,
   IconSettings,
   IconShieldCheckeredFilled,
   IconStackBack,
+  IconTarget,
   IconTopologyRing,
   IconUsers,
   IconUserShield,
+  IconMapPin,
 } from "@tabler/icons-react";
 
 import { NavMain } from "@/components/dashboard/nav-main";
@@ -34,6 +37,11 @@ import { usePathname } from "next/navigation";
 
 export const sidebarData = {
   adminNav: [
+    {
+      title: "Data Ingestion",
+      url: "/admin/upload",
+      icon: IconDatabase,
+    },
     {
       title: "Overview",
       url: "/admin",
@@ -54,11 +62,6 @@ export const sidebarData = {
       url: "/admin/warrants",
       icon: IconAward,
     },
-    {
-      title: "Audit Logs",
-      url: "/admin/audits",
-      icon: IconStackBack,
-    },
   ],
   navMain: [
     {
@@ -67,14 +70,9 @@ export const sidebarData = {
       icon: IconChartAreaLine,
     },
     {
-      title: "Analytics",
-      url: "/dashboard/analytics",
-      icon: IconChartBar,
-    },
-    {
       title: "Geolocation Map",
       url: "/dashboard/map",
-      icon: IconSearch,
+      icon: IconMapPin,
     },
     {
       title: "Pattern Analysis",
@@ -84,44 +82,12 @@ export const sidebarData = {
     {
       title: "Suspect Tracking",
       url: "/dashboard/tracking",
-      icon: IconUsers,
-    },
-    {
-      title: "Kingpins Leaderboard",
-      url: "/dashboard/kingpins",
-      icon: IconCrown,
-    },
-    {
-      title: "Fraud Rings",
-      url: "/dashboard/rings",
-      icon: IconTopologyRing,
-    },
-    {
-      title: "AI Briefing",
-      url: "/dashboard/briefs",
-      icon: IconUsers,
+      icon: IconTarget,
     },
     {
       title: "Data Upload",
       url: "/dashboard/upload",
       icon: IconFileDescription,
-    },
-  ],
-  navSecondary: [
-    {
-      title: "Settings",
-      url: "#",
-      icon: IconSettings,
-    },
-    {
-      title: "Get Help",
-      url: "#",
-      icon: IconHelp,
-    },
-    {
-      title: "Search",
-      url: "#",
-      icon: IconSearch,
     },
   ],
 };
@@ -162,7 +128,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={navItems} />
-        <NavSecondary items={sidebarData.navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
         <NavUser />

@@ -112,4 +112,16 @@ export class InvestigationsController {
       throw error;
     }
   }
+
+  @Post('list')
+  async list() {
+    const res = await this.investigationService.listInvestigations();
+    return { data: res };
+  }
+
+  @Post('get-all')
+  async getAll() {
+    const res = await this.investigationService.listInvestigations();
+    return { data: res };
+  }
 }
