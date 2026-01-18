@@ -32,9 +32,12 @@ axiosInstance.interceptors.response.use(
 
 // Helper to extract data property directly
 const getData = async <T>(promise: Promise<AxiosResponse<T>>): Promise<T> => {
-  const response = await promise;
-  // @ts-ignore - Dynamic access to data wrapper if present
-  return response.data?.data ?? response.data;
+  const result = await promise;
+  // If result has config, it's a full AxiosResponse. If not, it's already unwrapped data.
+  const data = (result as any).data;
+
+  // Return the inner data property if it exists, otherwise the whole result
+  return (data?.data ?? data ?? result) as T;
 };
 
 export const api = {
@@ -124,4 +127,12 @@ export const api = {
     getData(
       axiosInstance.post(`/investigations/${investigationId}/sync-towers`),
     ),
+  getTrajectories: (investigationId: string) =>
+    getData(
+      axiosInstance.get(`/investigations/${investigationId}/trajectories`),
+    ),
+  getNetworkData: (investigationId: string) =>
+    getData(axiosInstance.post(`/investigations/${investigationId}/analyze`)),
+  getCallPatterns: (investigationId: string) =>
+    getData(axiosInstance.post(`/investigations/${investigationId}/patterns`)),
 };

@@ -120,12 +120,6 @@ export default function MapPage() {
     }
   };
 
-  // Handle range change
-  const handleRangeChange = (range: number, unit: "meters" | "km") => {
-    const rangeInKm = unit === "meters" ? range / 1000 : range;
-    setRangeKm(rangeInKm);
-  };
-
   // Sort and process markers for timeline
 
   // Filter markers based on known/unknown status
@@ -144,27 +138,6 @@ export default function MapPage() {
   // Applied temporal filtering (identity for now)
   const temporalFilteredMarkers = filteredMarkers;
 
-  // Get unique suspects for selection (must be before conditional returns)
-  const suspects = useMemo(() => {
-    const suspectMap = new Map();
-    data.markers.forEach((marker: any) => {
-      if (marker.caller?.id && !suspectMap.has(marker.caller.id)) {
-        suspectMap.set(marker.caller.id, {
-          id: marker.caller.id,
-          name: marker.caller.name,
-          phone: marker.caller.phone,
-        });
-      }
-      if (marker.receiver?.id && !suspectMap.has(marker.receiver.id)) {
-        suspectMap.set(marker.receiver.id, {
-          id: marker.receiver.id,
-          name: marker.receiver.name,
-          phone: marker.receiver.phone,
-        });
-      }
-    });
-    return Array.from(suspectMap.values());
-  }, [data.markers]);
 
   if (loading) {
     return (
@@ -179,55 +152,14 @@ export default function MapPage() {
 
   return (
     <div className="flex gap-4 p-6">
-      {/* Left Sidebar - Controls */}
-      <div className="w-80 space-y-4 flex-shrink-0">
-        <MapControlPanel
-          suspects={suspects}
-          selectedVictimId={selectedVictimId}
-          selectedSuspectId={selectedSuspectId}
-          onSelectVictim={setSelectedVictimId}
-          onSelectSuspect={setSelectedSuspectId}
-          onTriangulate={handleTriangulate}
-          showConnections={showConnections}
-          onToggleConnections={setShowConnections}
-          triangulationLoading={triangulationLoading}
-          connectionCount={connections.length}
-        />
-
-        <RangeControl
-          onRangeChange={handleRangeChange}
-          defaultRange={10}
-          defaultUnit="km"
-        />
-      </div>
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col gap-4">
         {/* Filter & Timeline Bar */}
         <div className="flex flex-col gap-4 bg-card border rounded-lg p-4 shadow-sm">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-2 text-sm">
-              <IconFilter className="h-4 w-4 text-muted-foreground" />
-              <span className="text-muted-foreground font-medium">Filter:</span>
-              <div className="flex gap-1">
-                {(["all", "known", "unknown"] as FilterType[]).map((f) => (
-                  <button
-                    key={f}
-                    onClick={() => setFilter(f)}
-                    className={`px-3 py-1 rounded-full text-[10px] uppercase tracking-wider font-bold transition-all ${
-                      filter === f
-                        ? "bg-primary text-primary-foreground shadow-sm"
-                        : "bg-muted text-muted-foreground hover:bg-muted/80"
-                    }`}
-                  >
-                    {f === "all"
-                      ? "All"
-                      : f === "known"
-                        ? "Verified"
-                        : "Unknown"}
-                  </button>
-                ))}
-              </div>
+            <div className="flex items-center gap-2 text-xl font-bold">
+              Geolocation Map
             </div>
 
             <div className="flex items-center gap-2">

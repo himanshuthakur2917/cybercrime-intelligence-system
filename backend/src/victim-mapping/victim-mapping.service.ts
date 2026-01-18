@@ -115,7 +115,10 @@ export class VictimMappingService {
     );
 
     const query = `
-      MATCH (i:Investigation {id: $invId})-[:HAS_VICTIM]->(v:Victim)
+      MATCH (i:Investigation)
+      WHERE i.id = $invId OR i.caseId = $invId
+      WITH i
+      MATCH (i)-[:HAS_VICTIM]->(v:Victim)
       
       // Find suspects from metadata
       WITH i, v, 
@@ -214,7 +217,10 @@ export class VictimMappingService {
     );
 
     const query = `
-      MATCH (i:Investigation {id: $invId})-[:HAS_VICTIM]->(v:Victim)
+      MATCH (i:Investigation)
+      WHERE i.id = $invId OR i.caseId = $invId
+      WITH i
+      MATCH (i)-[:HAS_VICTIM]->(v:Victim)
       MATCH (i)-[:CONTAINS]->(s1:Suspect)-[cdr1:CDR_CALL]->(target1:Suspect {phone: v.phone})
       MATCH (i)-[:CONTAINS]->(s2:Suspect)-[cdr2:CDR_CALL]->(target2:Suspect {phone: v.phone})
       WHERE s1.id < s2.id
@@ -304,7 +310,9 @@ export class VictimMappingService {
     );
 
     const query = `
-      MATCH (i:Investigation {id: $invId})
+      MATCH (i:Investigation)
+      WHERE i.id = $invId OR i.caseId = $invId
+      WITH i
       
       // Part A: Call-based patterns
       MATCH (i)-[:HAS_VICTIM]->(v:Victim)
@@ -404,7 +412,10 @@ export class VictimMappingService {
     );
 
     const query = `
-      MATCH (i:Investigation {id: $invId})-[:CONTAINS]->(s:Suspect {id: $suspectId})
+      MATCH (i:Investigation)
+      WHERE i.id = $invId OR i.caseId = $invId
+      WITH i
+      MATCH (i)-[:CONTAINS]->(s:Suspect {id: $suspectId})
       
       // Get historical trajectory points from properties
       WITH i, s,
@@ -508,7 +519,10 @@ export class VictimMappingService {
       if (rawPoints.length === 0) {
         // Additional diagnostic query to see what's available
         const diagnosticQuery = `
-          MATCH (i:Investigation {id: $invId})-[:CONTAINS]->(s:Suspect {id: $suspectId})
+          MATCH (i:Investigation)
+          WHERE i.id = $invId OR i.caseId = $invId
+          WITH i
+          MATCH (i)-[:CONTAINS]->(s:Suspect {id: $suspectId})
           OPTIONAL MATCH (s)-[cdr:CDR_CALL]->()
           OPTIONAL MATCH (i)-[:HAS_TOWER]->(t:CellTower)
           RETURN 
@@ -584,7 +598,10 @@ export class VictimMappingService {
     );
 
     const query = `
-      MATCH (i:Investigation {id: $invId})-[:HAS_VICTIM]->(v:Victim)
+      MATCH (i:Investigation)
+      WHERE i.id = $invId OR i.caseId = $invId
+      WITH i
+      MATCH (i)-[:HAS_VICTIM]->(v:Victim)
       MATCH (i)-[:CONTAINS]->(c1:Suspect)-[call1:CALLED]->(target:Suspect {phone: v.phone})
       MATCH (i)-[:CONTAINS]->(c2:Suspect)-[call2:CALLED]->(target)
       WHERE c1.id < c2.id
@@ -650,7 +667,10 @@ export class VictimMappingService {
     );
 
     const query = `
-      MATCH (i:Investigation {id: $invId})-[:CONTAINS]->(victim:Suspect {phone: $victimPhone})
+      MATCH (i:Investigation)
+      WHERE i.id = $invId OR i.caseId = $invId
+      WITH i
+      MATCH (i)-[:CONTAINS]->(victim:Suspect {phone: $victimPhone})
       WHERE victim.isVictim = true OR victim.status = 'VICTIM'
       
       // Find suspects who called the victim via CDR

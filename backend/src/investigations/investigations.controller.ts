@@ -154,4 +154,26 @@ export class InvestigationsController {
     const res = await this.investigationService.listInvestigations();
     return { data: res };
   }
+
+  @Post(':investigationId/patterns')
+  async getCallPatterns(@Param('investigationId') investigationId: string) {
+    this.logger.log(
+      `Fetching call patterns for investigation: ${investigationId}`,
+      'InvestigationsController',
+    );
+    try {
+      const result =
+        await this.investigationService.getCallPatterns(investigationId);
+      return {
+        message: 'Call patterns retrieved successfully',
+        data: result,
+      };
+    } catch (error) {
+      this.logger.failed(
+        `Failed to fetch call patterns for ${investigationId}`,
+        'InvestigationsController',
+      );
+      throw error;
+    }
+  }
 }

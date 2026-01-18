@@ -108,7 +108,7 @@ export default function CaseNetworkPage() {
             </button>
           </div>
         )}
-        <NetworkGraph onNodeClick={handleNodeClick} />
+        <NetworkGraph onNodeClick={handleNodeClick} investigationId={caseId} />
         <DetailPanel
           suspectId={selectedSuspect}
           isOpen={isPanelOpen}

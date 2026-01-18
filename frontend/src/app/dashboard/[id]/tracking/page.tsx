@@ -150,7 +150,7 @@ export default function TrackingPage() {
   return (
     <div className="flex flex-col gap-6 p-6 min-w-full mx-auto">
       {/* Simplified Header */}
-      <div className="flex flex-col md:flex-row md:items-center  w-full border justify-between gap-4 border-b pb-6">
+      <div className="flex flex-col md:flex-row md:items-center  w-full justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-3">
             <IconTarget className="h-7 w-7 text-primary" />

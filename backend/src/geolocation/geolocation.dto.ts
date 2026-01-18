@@ -78,7 +78,6 @@ export class TriangulationResult {
   accuracyMeters: number;
   towerCount: number;
   towersUsed: string[];
-  phantomTowers?: string[]; // 🆕 Towers that don't exist in Supabase
   confidence: 'HIGH' | 'MEDIUM' | 'LOW';
   timestamp: Date;
 }

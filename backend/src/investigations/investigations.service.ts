@@ -7,7 +7,7 @@ import {
   Investigation,
   Suspects,
 } from './interfaces/investigation.interface';
-import { Record, Node, Relationship } from 'neo4j-driver';
+import { Record, Node, Relationship, Integer } from 'neo4j-driver';
 
 export interface GraphNode {
   id: string;
@@ -27,6 +27,24 @@ export interface GraphEdge {
   [key: string]: any;
 }
 
+export interface CallPattern {
+  callerId: string;
+  callerName: string;
+  callerPhone: string;
+  receiverId: string;
+  receiverName: string;
+  receiverPhone: string;
+  callCount: number;
+  totalDuration: number;
+  towers: {
+    id: string;
+    name: string;
+    lat: number;
+    lon: number;
+  }[];
+  riskLevel: string;
+}
+
 export interface IngestResult {
   suspectCount: number;
   callCount: number;
@@ -34,6 +52,28 @@ export interface IngestResult {
   cdrCount: number;
   cellTowerCount: number;
   victimCount: number;
+}
+
+/**
+ * Helper to recursively convert all Neo4j Integers in an object to regular JS numbers
+ */
+function convertNeo4jIntegers(obj: any): any {
+  if (obj === null || obj === undefined) return obj;
+  if (Integer.isInteger(obj)) return obj.toNumber();
+  if (typeof obj === 'object' && 'low' in obj && 'high' in obj) {
+    return Integer.fromValue(obj).toNumber();
+  }
+  if (Array.isArray(obj)) {
+    return obj.map(convertNeo4jIntegers);
+  }
+  if (typeof obj === 'object') {
+    const result: any = {};
+    for (const key in obj) {
+      result[key] = convertNeo4jIntegers(obj[key]);
+    }
+    return result;
+  }
+  return obj;
 }
 
 @Injectable()
@@ -784,11 +824,14 @@ export class InvestigationsService {
     );
 
     try {
+      // Find investigation by id OR caseId
       const graphResult: Record[] = await this.neo4jService.readCypher(
-        `MATCH (i:Investigation {id: $invId})-[:CONTAINS]->(s:Suspect)
+        `MATCH (i:Investigation)
+         WHERE i.id = $id OR i.caseId = $id
+         MATCH (i)-[:CONTAINS]->(s:Suspect)
          OPTIONAL MATCH (s)-[r:CALLED|TRANSACTION|CDR_CALL]->(t:Suspect)
          RETURN s, collect({rel: r, target: t}) as edges`,
-        { invId: investigationId },
+        { id: investigationId },
       );
 
       const nodes: GraphNode[] = graphResult.map((r) => {
@@ -797,9 +840,9 @@ export class InvestigationsService {
           id: s.properties.id as string,
           label: s.properties.name as string,
           phone: s.properties.phone as string,
-          riskScore: s.properties.riskScore as number,
-          networkRole: s.properties.networkRole as string,
-          status: s.properties.status as string,
+          riskScore: (s.properties.riskScore as number) || 0,
+          networkRole: (s.properties.networkRole as string) || 'UNKNOWN',
+          status: (s.properties.status as string) || 'ACTIVE',
         };
       });
 
@@ -1236,12 +1279,123 @@ export class InvestigationsService {
       );
 
       return {
-        towerCount: towers.length,
-        message: `Successfully synced ${towers.length} towers and linked to all investigations`,
+        towerCount: towerIds.length,
+        message: `Successfully synced ${towerIds.length} towers to Neo4j`,
       };
     } catch (error) {
       this.logger.error(
         `Failed to sync towers: ${error}`,
+        undefined,
+        'InvestigationsService',
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Get detailed call patterns for an investigation
+   * Aggregates by caller-receiver pair and enriches with tower data
+   */
+  async getCallPatterns(investigationId: string): Promise<CallPattern[]> {
+    this.logger.log(
+      `Fetching call patterns for ${investigationId}`,
+      'InvestigationsService',
+    );
+
+    const query = `
+      MATCH (i:Investigation)
+      WHERE i.id = $invId OR i.caseId = $invId
+      WITH i
+      MATCH (i)-[:CONTAINS]->(c:Suspect)
+      MATCH (c)-[r:CDR_CALL|CALLED]->(t:Suspect)
+      WHERE (i)-[:CONTAINS]->(t)
+      
+      WITH c, t, r,
+           CASE WHEN r.duration IS NOT NULL THEN r.duration ELSE 0 END as call_dur,
+           CASE WHEN r.callerTowerId IS NOT NULL THEN r.callerTowerId ELSE null END as tower_id
+      
+      WITH c.id as callerId, c.name as callerName, c.phone as callerPhone,
+           t.id as receiverId, t.name as receiverName, t.phone as receiverPhone,
+           count(r) as call_count,
+           sum(call_dur) as total_duration,
+           collect(DISTINCT tower_id) as tower_ids
+      
+      RETURN {
+        callerId: callerId,
+        callerName: callerName,
+        callerPhone: callerPhone,
+        receiverId: receiverId,
+        receiverName: receiverName,
+        receiverPhone: receiverPhone,
+        callCount: call_count,
+        totalDuration: total_duration,
+        towerIds: [tid IN tower_ids WHERE tid IS NOT NULL]
+      } as pattern
+      ORDER BY call_count DESC
+    `;
+
+    try {
+      const records = await this.neo4jService.readCypher(query, {
+        invId: investigationId,
+      });
+
+      const rawPatterns = records.map((r) =>
+        convertNeo4jIntegers(r.get('pattern')),
+      );
+
+      // Enrich with towers from Supabase
+      const allTowerIds = [
+        ...new Set(rawPatterns.flatMap((p) => p.towerIds)),
+      ] as string[];
+
+      const towers =
+        allTowerIds.length > 0
+          ? await this.supabaseService.getTowersByIds(allTowerIds)
+          : [];
+      const towerMap = new Map(towers.map((t) => [t.cell_id, t]));
+
+      const enrichedPatterns: CallPattern[] = rawPatterns.map((p) => {
+        const enrichedTowers = (p.towerIds || [])
+          .map((tid: string) => {
+            const tower = towerMap.get(tid);
+            return tower
+              ? {
+                  id: tid,
+                  name: tower.name || 'Unknown',
+                  lat: tower.lat,
+                  lon: tower.lon,
+                }
+              : { id: tid, name: 'Unknown Tower', lat: 0, lon: 0 };
+          })
+          .filter(Boolean);
+
+        return {
+          callerId: p.callerId,
+          callerName: p.callerName,
+          callerPhone: p.callerPhone,
+          receiverId: p.receiverId,
+          receiverName: p.receiverName,
+          receiverPhone: p.receiverPhone,
+          callCount: p.callCount,
+          totalDuration: p.totalDuration,
+          towers: enrichedTowers,
+          riskLevel:
+            p.callCount > 50
+              ? 'CRITICAL'
+              : p.callCount > 20
+                ? 'HIGH'
+                : 'MEDIUM',
+        };
+      });
+
+      this.logger.success(
+        `Found ${enrichedPatterns.length} call patterns`,
+        'InvestigationsService',
+      );
+      return enrichedPatterns;
+    } catch (error) {
+      this.logger.error(
+        `Failed to get call patterns: ${error}`,
         undefined,
         'InvestigationsService',
       );

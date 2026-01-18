@@ -586,7 +586,6 @@ export class GeolocationService {
 
   /**
    * Triangulate suspect location using PostGIS
-   * NOW WITH PHANTOM TOWER DETECTION
    */
   async triangulateLocation(
     investigationId: string,
@@ -623,82 +622,18 @@ export class GeolocationService {
       }
 
       const result = convertNeo4jIntegers(records[0].get('result'));
-      const allTowerIds = result.tower_ids || [];
+      const towerIds = result.tower_ids || [];
 
-      if (allTowerIds.length === 0) {
+      if (towerIds.length === 0) {
         return null;
       }
-
-      this.logger.log(
-        `[TRIANGULATION DEBUG] Suspect ${suspectId}: Found ${allTowerIds.length} towers from CDR records`,
-        'GeolocationService',
-      );
-      this.logger.log(
-        `[TRIANGULATION DEBUG] Tower IDs from Neo4j: ${allTowerIds.join(', ')}`,
-        'GeolocationService',
-      );
-
-      // ✅ VALIDATE: Check which towers actually exist in Supabase
-      const supabaseTowers =
-        await this.supabaseService.getTowersByIds(allTowerIds);
-      const validTowerIds = supabaseTowers.map((t) => t.cell_id);
-      const phantomTowerIds = allTowerIds.filter(
-        (id) => !validTowerIds.includes(id),
-      );
-
-      this.logger.log(
-        `[TRIANGULATION DEBUG] Towers in Supabase: ${validTowerIds.length} / ${allTowerIds.length}`,
-        'GeolocationService',
-      );
-      this.logger.log(
-        `[TRIANGULATION DEBUG] ✅ Valid towers: ${validTowerIds.join(', ')}`,
-        'GeolocationService',
-      );
-
-      if (phantomTowerIds.length > 0) {
-        this.logger.warn(
-          `[TRIANGULATION DEBUG] ❌ PHANTOM TOWERS (missing from Supabase): ${phantomTowerIds.join(', ')}`,
-          'GeolocationService',
-        );
-      }
-
-      // ⚠️ CRITICAL: Use only valid towers for triangulation
-      if (validTowerIds.length === 0) {
-        this.logger.error(
-          `[TRIANGULATION DEBUG] ❌ NO VALID TOWERS - All ${allTowerIds.length} towers are phantoms!`,
-          'GeolocationService',
-        );
-        return null;
-      }
-
-      this.logger.log(
-        `[TRIANGULATION DEBUG] Using ${validTowerIds.length} valid towers (excluding ${phantomTowerIds.length} phantoms)`,
-        'GeolocationService',
-      );
-
-      // Log tower coordinates for debugging
-      supabaseTowers.forEach((tower) => {
-        this.logger.log(
-          `[TRIANGULATION DEBUG] Tower ${tower.cell_id}: (${tower.lat}, ${tower.lon})`,
-          'GeolocationService',
-        );
-      });
 
       const triangulated =
-        await this.supabaseService.triangulatePosition(validTowerIds);
+        await this.supabaseService.triangulatePosition(towerIds);
 
       if (!triangulated) {
-        this.logger.error(
-          `[TRIANGULATION DEBUG] Triangulation failed (no result from RPC)`,
-          'GeolocationService',
-        );
         return null;
       }
-
-      this.logger.log(
-        `[TRIANGULATION DEBUG] Triangulation result: (${triangulated.lat}, ${triangulated.lon}), accuracy: ${triangulated.accuracy_m}m`,
-        'GeolocationService',
-      );
 
       let confidence: 'HIGH' | 'MEDIUM' | 'LOW' = 'LOW';
       if (triangulated.tower_count >= 3) {
@@ -716,14 +651,13 @@ export class GeolocationService {
         },
         accuracyMeters: triangulated.accuracy_m,
         towerCount: triangulated.tower_count,
-        towersUsed: validTowerIds,
-        phantomTowers: phantomTowerIds, // 🆕 Report phantom towers
+        towersUsed: towerIds,
         confidence,
         timestamp: new Date(),
       };
 
       this.logger.success(
-        `Triangulated location with ${confidence} confidence (${validTowerIds.length} valid towers)`,
+        `Triangulated location with ${confidence} confidence`,
         'GeolocationService',
       );
 
