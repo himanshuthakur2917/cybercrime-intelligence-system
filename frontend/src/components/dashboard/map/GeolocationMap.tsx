@@ -82,8 +82,6 @@ export interface RestrictedZone {
 interface GeolocationMapProps {
   markers?: MapMarker[];
   cellTowers?: CellTower[];
-  convergencePoints?: ConvergencePoint[];
-  restrictedZones?: RestrictedZone[];
   center?: [number, number];
   zoom?: number;
 }
@@ -118,31 +116,36 @@ const getRiskColor = (risk: string): string => {
 const GeolocationMap: React.FC<GeolocationMapProps> = ({
   markers = [],
   cellTowers = [],
-  convergencePoints = [],
-  restrictedZones = [],
   center = [28.6139, 77.209],
   zoom = 11,
 }) => {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [popupInfo, setPopupInfo] = useState<{
-    type: "caller" | "tower" | "convergence" | "zone";
-    data: MapMarker | CellTower | ConvergencePoint | RestrictedZone;
+    type: "caller" | "tower";
+    data: MapMarker | CellTower;
     lng: number;
     lat: number;
   } | null>(null);
 
   // Filter valid data
-  const validMarkers = useMemo(
-    () =>
-      markers.filter(
-        (m) =>
-          m.caller_position?.lat != null &&
-          m.caller_position?.lon != null &&
-          m.caller_position.lat !== 0 &&
-          m.caller_position.lon !== 0
-      ),
-    [markers]
-  );
+  const validMarkers = useMemo(() => {
+    console.log("[GeolocationMap] markers count:", markers.length);
+    const filtered = markers.filter(
+      (m) =>
+        m.caller_position?.lat != null &&
+        m.caller_position?.lon != null &&
+        m.caller_position.lat !== 0 &&
+        m.caller_position.lon !== 0,
+    );
+    console.log("[GeolocationMap] valid markers count:", filtered.length);
+    if (filtered.length === 0 && markers.length > 0) {
+      console.warn(
+        "[GeolocationMap] All markers were filtered out! Sample:",
+        markers[0],
+      );
+    }
+    return filtered;
+  }, [markers]);
 
   const validTowers = useMemo(
     () =>
@@ -151,89 +154,9 @@ const GeolocationMap: React.FC<GeolocationMapProps> = ({
           t.latitude != null &&
           t.longitude != null &&
           t.latitude !== 0 &&
-          t.longitude !== 0
+          t.longitude !== 0,
       ),
-    [cellTowers]
-  );
-
-  const validConvergence = useMemo(
-    () =>
-      convergencePoints.filter(
-        (p) =>
-          p.convergence_lat != null &&
-          p.convergence_lon != null &&
-          p.convergence_lat !== 0 &&
-          p.convergence_lon !== 0
-      ),
-    [convergencePoints]
-  );
-
-  // Build connection lines GeoJSON
-  const linesGeoJson = useMemo(() => {
-    const features = validMarkers
-      .filter(
-        (m) =>
-          m.receiver_position?.lat != null &&
-          m.receiver_position?.lon != null &&
-          m.receiver_position.lat !== 0 &&
-          m.receiver_position.lon !== 0
-      )
-      .map((m) => ({
-        type: "Feature" as const,
-        properties: {
-          call_id: m.call_id,
-          risk_level: m.risk_level,
-          isHighlighted: selectedId === m.call_id || selectedId === null,
-        },
-        geometry: {
-          type: "LineString" as const,
-          coordinates: [
-            [m.caller_position.lon, m.caller_position.lat],
-            [m.receiver_position.lon, m.receiver_position.lat],
-          ],
-        },
-      }));
-    return { type: "FeatureCollection" as const, features };
-  }, [validMarkers, selectedId]);
-
-  // Build restricted zones GeoJSON for PostGIS zones
-  const zonesGeoJson = useMemo(() => {
-    const features = restrictedZones
-      .filter((z) => z.polygon && z.polygon.length >= 3)
-      .map((z) => ({
-        type: "Feature" as const,
-        properties: {
-          id: z.id,
-          name: z.name,
-          type: z.type,
-          threat_level: z.threat_level,
-        },
-        geometry: {
-          type: "Polygon" as const,
-          coordinates: [z.polygon],
-        },
-      }));
-    return { type: "FeatureCollection" as const, features };
-  }, [restrictedZones]);
-
-  // Get callers for a victim
-  const getCallersForVictim = useCallback(
-    (victimId: string): MapMarker[] => {
-      return validMarkers.filter((m) => m.receiver?.id === victimId);
-    },
-    [validMarkers]
-  );
-
-  // Check if caller is connected to selected convergence
-  const isConnectedToSelected = useCallback(
-    (callId: string): boolean => {
-      if (!selectedId?.startsWith("conv-"))
-        return selectedId === callId || selectedId === null;
-      const victimId = selectedId.replace("conv-", "");
-      const marker = validMarkers.find((m) => m.call_id === callId);
-      return marker?.receiver?.id === victimId;
-    },
-    [selectedId, validMarkers]
+    [cellTowers],
   );
 
   // Handle map click to reset selection
@@ -298,19 +221,6 @@ const GeolocationMap: React.FC<GeolocationMapProps> = ({
                   lat: tower.latitude,
                 });
               }
-            } else if (type === "convergence-points") {
-              const point = validConvergence.find(
-                (p) => `conv-${p.victim_id}` === id
-              );
-              if (point) {
-                setSelectedId(id);
-                setPopupInfo({
-                  type: "convergence",
-                  data: point,
-                  lng: point.convergence_lon,
-                  lat: point.convergence_lat,
-                });
-              }
             }
           } else {
             handleMapClick();
@@ -324,74 +234,10 @@ const GeolocationMap: React.FC<GeolocationMapProps> = ({
             canvas.style.cursor = "";
           }
         }}
-        interactiveLayerIds={[
-          "caller-points",
-          "tower-symbols",
-          "convergence-points",
-        ]}
+        interactiveLayerIds={["caller-points", "tower-symbols"]}
         reuseMaps
       >
         <NavigationControl position="top-right" showCompass showZoom />
-
-        {/* Connection Lines */}
-        <Source id="connections" type="geojson" data={linesGeoJson}>
-          <Layer
-            id="connection-lines"
-            type="line"
-            paint={{
-              "line-color": [
-                "case",
-                ["==", ["get", "risk_level"], "HIGH"],
-                "#ef4444",
-                ["==", ["get", "risk_level"], "MEDIUM"],
-                "#f97316",
-                "#22c55e",
-              ],
-              "line-width": 2,
-              "line-opacity": [
-                "case",
-                ["==", ["get", "isHighlighted"], true],
-                0.8,
-                0.15,
-              ],
-            }}
-          />
-        </Source>
-
-        {/* Restricted Zones (PostGIS geofences) */}
-        <Source id="restricted-zones" type="geojson" data={zonesGeoJson}>
-          <Layer
-            id="zone-fill"
-            type="fill"
-            paint={{
-              "fill-color": [
-                "case",
-                ["==", ["get", "threat_level"], "CRITICAL"],
-                "#dc2626",
-                ["==", ["get", "threat_level"], "HIGH"],
-                "#ea580c",
-                "#eab308",
-              ],
-              "fill-opacity": 0.15,
-            }}
-          />
-          <Layer
-            id="zone-outline"
-            type="line"
-            paint={{
-              "line-color": [
-                "case",
-                ["==", ["get", "threat_level"], "CRITICAL"],
-                "#dc2626",
-                ["==", ["get", "threat_level"], "HIGH"],
-                "#ea580c",
-                "#eab308",
-              ],
-              "line-width": 2,
-              "line-dasharray": [2, 2],
-            }}
-          />
-        </Source>
 
         {/* Cell Towers Layer */}
         <Source
@@ -436,7 +282,7 @@ const GeolocationMap: React.FC<GeolocationMapProps> = ({
               properties: {
                 id: m.call_id,
                 risk: m.risk_level,
-                isHighlighted: isConnectedToSelected(m.call_id),
+                isHighlighted: true,
               },
               geometry: {
                 type: "Point",
@@ -470,54 +316,6 @@ const GeolocationMap: React.FC<GeolocationMapProps> = ({
                 ["==", ["get", "isHighlighted"], true],
                 1,
                 0.2,
-              ],
-            }}
-          />
-        </Source>
-
-        {/* Convergence/Victims Layer */}
-        <Source
-          id="convergence"
-          type="geojson"
-          data={{
-            type: "FeatureCollection",
-            features: validConvergence.map((p) => ({
-              type: "Feature",
-              properties: {
-                id: `conv-${p.victim_id}`,
-                severity: p.zone_severity,
-                isHighlighted:
-                  selectedId === `conv-${p.victim_id}` || selectedId === null,
-              },
-              geometry: {
-                type: "Point",
-                coordinates: [p.convergence_lon, p.convergence_lat],
-              },
-            })),
-          }}
-        >
-          <Layer
-            id="convergence-points"
-            type="circle"
-            paint={{
-              "circle-radius": 12,
-              "circle-color": [
-                "case",
-                ["==", ["get", "severity"], "CRITICAL"],
-                "#dc2626",
-                ["==", ["get", "severity"], "HIGH"],
-                "#ea580c",
-                ["==", ["get", "severity"], "MEDIUM"],
-                "#eab308",
-                "#16a34a",
-              ],
-              "circle-stroke-width": 3,
-              "circle-stroke-color": "#ffffff",
-              "circle-opacity": [
-                "case",
-                ["==", ["get", "isHighlighted"], true],
-                0.7,
-                0.15,
               ],
             }}
           />
@@ -617,82 +415,6 @@ const GeolocationMap: React.FC<GeolocationMapProps> = ({
                     </div>
                   );
                 })()}
-
-              {/* Convergence/Victim Popup */}
-              {popupInfo.type === "convergence" &&
-                (() => {
-                  const p = popupInfo.data as ConvergencePoint;
-                  const callers = getCallersForVictim(p.victim_id);
-                  return (
-                    <div className="space-y-1.5">
-                      {/* Header */}
-                      <div className="text-center border-b pb-1">
-                        <span className="px-2 py-0.5 bg-green-600 text-white text-[9px] font-bold rounded">
-                          VICTIM
-                        </span>
-                      </div>
-
-                      {/* Victim Info */}
-                      <div className="bg-green-50 p-1.5 rounded border-l-2 border-green-500">
-                        <div className="font-bold text-[11px] truncate">
-                          {p.victim_name || "Unknown"}
-                        </div>
-                        <div className="text-[10px] text-gray-600">
-                          {toNumber(p.total_interactions)} calls
-                        </div>
-                      </div>
-
-                      {/* Connected Suspects */}
-                      <div className="bg-red-50 p-1.5 rounded border-l-2 border-red-500">
-                        <div className="text-[9px] text-red-600 font-bold mb-0.5">
-                          SUSPECTS (
-                          {callers.length || p.caller_names?.length || 0})
-                        </div>
-                        <div className="space-y-0.5 max-h-14 overflow-y-auto text-[10px]">
-                          {callers.length > 0 ? (
-                            callers.slice(0, 3).map((c, i) => (
-                              <div key={i} className="truncate text-gray-700">
-                                • {c.caller?.name || "Unknown"}
-                              </div>
-                            ))
-                          ) : p.caller_names?.length > 0 ? (
-                            p.caller_names.slice(0, 3).map((name, i) => (
-                              <div key={i} className="truncate">
-                                • {name}
-                              </div>
-                            ))
-                          ) : (
-                            <div className="text-gray-500 italic">No data</div>
-                          )}
-                          {(callers.length > 3 ||
-                            (p.caller_names?.length || 0) > 3) && (
-                            <div className="text-gray-400">
-                              +
-                              {Math.max(
-                                callers.length,
-                                p.caller_names?.length || 0
-                              ) - 3}{" "}
-                              more
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Severity Badge */}
-                      <div
-                        className="text-center py-1 rounded font-bold text-[10px]"
-                        style={{
-                          backgroundColor: `${getSeverityColor(
-                            p.zone_severity
-                          )}20`,
-                          color: getSeverityColor(p.zone_severity),
-                        }}
-                      >
-                        {p.zone_severity} RISK
-                      </div>
-                    </div>
-                  );
-                })()}
             </div>
           </Popup>
         )}
@@ -703,34 +425,16 @@ const GeolocationMap: React.FC<GeolocationMapProps> = ({
         <div className="font-bold text-sm border-b pb-1">📍 Legend</div>
         <div className="flex items-center gap-2">
           <span className="text-base">📍</span>
-          <span>Caller</span>
+          <span>CDR Marker</span>
           <span className="ml-auto text-red-500">●</span>
-          <span className="text-[10px] text-gray-500">High</span>
         </div>
         <div className="flex items-center gap-2">
           <span className="text-base">📡</span>
-          <span>Tower</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded-full border-2 border-green-600 bg-green-600/20 flex items-center justify-center text-[8px]">
-            👤
-          </div>
-          <span>Victim</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded-full border-2 border-red-600 bg-red-600/20 flex items-center justify-center text-[8px]">
-            🚨
-          </div>
-          <span>Critical Zone</span>
+          <span>Cell Tower</span>
         </div>
         <div className="border-t pt-1">
-          <div className="flex items-center gap-2">
-            <div className="w-5 h-0.5 bg-red-500"></div>
-            <span>High Risk</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-5 h-0.5 bg-green-500"></div>
-            <span>Low Risk</span>
+          <div className="text-[10px] text-muted-foreground italic">
+            Markers show caller locations based on tower data.
           </div>
         </div>
       </div>

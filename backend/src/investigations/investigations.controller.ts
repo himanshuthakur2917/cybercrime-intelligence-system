@@ -119,6 +119,36 @@ export class InvestigationsController {
     return { data: res };
   }
 
+  @Post(':investigationId/sync-towers')
+  async syncTowers(@Param('investigationId') investigationId: string) {
+    this.logger.log(
+      `Syncing cell towers for investigation: ${investigationId}`,
+      'InvestigationsController',
+    );
+
+    try {
+      const result =
+        await this.investigationService.syncTowersToNeo4j(investigationId);
+
+      this.logger.success(
+        `Tower sync complete: ${result.towerCount} towers`,
+        'InvestigationsController',
+      );
+
+      return {
+        success: true,
+        message: result.message,
+        towerCount: result.towerCount,
+      };
+    } catch (error) {
+      this.logger.failed(
+        `Tower sync failed for ${investigationId}`,
+        'InvestigationsController',
+      );
+      throw error;
+    }
+  }
+
   @Post('get-all')
   async getAll() {
     const res = await this.investigationService.listInvestigations();

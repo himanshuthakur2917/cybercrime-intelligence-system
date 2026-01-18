@@ -8,12 +8,12 @@ import EditCaseDialog from "@/components/admin/cases/EditCaseDialog";
 import { Button } from "@/components/ui/button";
 import { IconPlus } from "@tabler/icons-react";
 import { Case } from "@/types/cases";
+import { useAuth } from "@/hooks/use-auth";
 
-// TODO: Get this from auth context
-const ADMIN_USER_ID = "74eb9bcc-a4fd-49b9-8f5d-b5d8e9a18e67";
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
 export default function CasesPage() {
+  const { user } = useAuth();
   const [selectedCase, setSelectedCase] = useState<Case | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -62,7 +62,7 @@ export default function CasesPage() {
             open={isCreateDialogOpen}
             onOpenChange={setIsCreateDialogOpen}
             onSuccess={handleCaseCreated}
-            adminUserId={ADMIN_USER_ID}
+            adminUserId={user?.id || ""}
           />
 
           <CaseDetailsDialog

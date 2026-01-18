@@ -510,10 +510,12 @@ export class SuspectIngestionService {
       await this.neo4j.writeCypher(
         `
         UNWIND $batch AS row
+        
+        // Create or merge Phone nodes
         MERGE (caller_p:Phone {number: row.caller_phone})
         MERGE (callee_p:Phone {number: row.callee_phone})
         
-        // Link Phone nodes to Phone nodes with CALLED relationship
+        // Create CALLED relationship between phones
         CREATE (caller_p)-[r:CALLED {
           timestamp: CASE WHEN row.timestamp <> "" THEN datetime(row.timestamp) ELSE datetime() END,
           duration_sec: row.duration_sec,
@@ -521,25 +523,45 @@ export class SuspectIngestionService {
           cell_tower_id: row.cell_tower_id
         }]->(callee_p)
         
-        // Also find related suspects and create CDR_CALL for map visualization
-        WITH caller_p, callee_p, row, r
-        OPTIONAL MATCH (s_caller:Suspect)-[:HAS_PHONE]->(caller_p)
-        OPTIONAL MATCH (s_callee:Suspect)-[:HAS_PHONE]->(callee_p)
+        // Auto-create Suspect nodes from CDR (if they don't exist)
+        MERGE (s_caller:Suspect {id: 'suspect_' + row.caller_phone})
+        ON CREATE SET 
+          s_caller.phone = row.caller_phone,
+          s_caller.name = 'Caller ' + row.caller_phone,
+          s_caller.status = 'ACTIVE',
+          s_caller.riskScore = 'MEDIUM',
+          s_caller.createdAt = datetime()
+        SET s_caller:GlobalSuspect
+        MERGE (s_caller)-[:HAS_PHONE]->(caller_p)
         
-        WITH s_caller, s_callee, row, r, caller_p, callee_p
-        WHERE s_caller IS NOT NULL AND s_callee IS NOT NULL
+        MERGE (s_callee:Suspect {id: 'suspect_' + row.callee_phone})
+        ON CREATE SET 
+          s_callee.phone = row.callee_phone,
+          s_callee.name = 'Callee ' + row.callee_phone,
+          s_callee.status = 'ACTIVE',
+          s_callee.riskScore = 'MEDIUM',
+          s_callee.createdAt = datetime()
+        SET s_callee:GlobalSuspect
+        MERGE (s_callee)-[:HAS_PHONE]->(callee_p)
+        
+        // Always create CDR_CALL for map visualization
         CREATE (s_caller)-[cdr:CDR_CALL {
           callId: 'cdr_' + toString(id(r)),
           callerTowerId: row.cell_tower_id,
+          receiverTowerId: row.cell_tower_id,
           callStartTime: toString(r.timestamp),
-          duration: row.duration_sec,
-          approximateDistanceKm: 0.5, // Mock distance
-          proximityPattern: 'NEAR'
+          durationSec: row.duration_sec,
+          approximateDistanceKm: 0.5,
+          proximityPattern: 'NEAR',
+          direction: 'OUTGOING'
         }]->(s_callee)
         
-        WITH caller_p, callee_p, row
+        // Link to Investigation
+        WITH s_caller, s_callee, caller_p, callee_p, row
         WHERE $investigationId IS NOT NULL
         MERGE (i:Investigation {id: $investigationId})
+        MERGE (i)-[:CONTAINS]->(s_caller)
+        MERGE (i)-[:CONTAINS]->(s_callee)
         MERGE (i)-[:HAS_PHONE]->(caller_p)
         MERGE (i)-[:HAS_PHONE]->(callee_p)
         `,

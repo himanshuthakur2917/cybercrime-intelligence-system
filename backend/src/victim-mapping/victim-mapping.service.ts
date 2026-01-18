@@ -3,6 +3,8 @@ import { Neo4jService } from 'src/neo4j/neo4j.service';
 import { LoggerService } from 'src/common/logger/logger.service';
 import { Integer } from 'neo4j-driver';
 
+import { SupabaseService } from 'src/supabase/supabase.service';
+
 /**
  * Helper to convert Neo4j Integer objects to regular JavaScript numbers
  * Neo4j returns large integers as {low, high} objects
@@ -97,6 +99,7 @@ export interface TrajectoryPoint {
 export class VictimMappingService {
   constructor(
     private readonly neo4jService: Neo4jService,
+    private readonly supabaseService: SupabaseService,
     private readonly logger: LoggerService,
   ) {}
 
@@ -114,7 +117,7 @@ export class VictimMappingService {
     const query = `
       MATCH (i:Investigation {id: $invId})-[:HAS_VICTIM]->(v:Victim)
       
-      // Parse callingSuspects and find matching suspects
+      // Find suspects from metadata
       WITH i, v, 
            CASE 
              WHEN v.callingSuspects IS NOT NULL AND v.callingSuspects <> 'NONE' 
@@ -122,22 +125,33 @@ export class VictimMappingService {
              ELSE []
            END AS suspectIds
       
-      // Match suspects that called this victim
-      OPTIONAL MATCH (i)-[:CONTAINS]->(s:Suspect)
-      WHERE s.id IN suspectIds OR s.phone = v.phone
+      // Match suspects via relationships (CDR_CALL, CALLED, etc.) to victim's suspect node
+      OPTIONAL MATCH (i)-[:CONTAINS]->(vs:Suspect {phone: v.phone})
+      OPTIONAL MATCH (s_rel:Suspect)-[r:CDR_CALL|CALLED|TRANSACTION]-(vs)
+      WHERE (i)-[:CONTAINS]->(s_rel) AND s_rel.isVictim IS NULL AND s_rel.status <> 'VICTIM'
       
-      // Also check for calls where suspect called victim's phone
-      OPTIONAL MATCH (s)-[call:CALLED]->(target:Suspect {phone: v.phone})
+      // Match suspects explicitly listed in metadata
+      OPTIONAL MATCH (i)-[:CONTAINS]->(s_meta:Suspect)
+      WHERE s_meta.id IN suspectIds AND s_meta.isVictim IS NULL AND s_meta.status <> 'VICTIM'
+
+      // Match suspects via Geospatial proximity (Same Tower)
+      // We look for suspects who have CDR relationship at the same tower as the victim's calls
+      OPTIONAL MATCH (vs)-[r_v:CDR_CALL]->()
+      WITH i, v, vs, r_v, s_rel, s_meta, r
+      OPTIONAL MATCH (i)-[:CONTAINS]->(s_geo:Suspect)-[r_s:CDR_CALL]->()
+      WHERE r_s.callerTowerId = r_v.callerTowerId 
+        AND s_geo.id <> vs.id 
+        AND s_geo.isVictim IS NULL 
+        AND s_geo.status <> 'VICTIM'
       
       WITH v, 
-           collect(DISTINCT {
-             suspect_id: s.id,
-             suspect_name: s.name,
-             suspect_phone: s.phone,
-             risk_score: s.riskScore,
-             network_role: s.networkRole
-           }) AS connected_suspects,
-           sum(COALESCE(call.callCount, 0)) AS total_calls
+           collect(DISTINCT s_rel) AS rel_suspects,
+           collect(DISTINCT s_meta) AS meta_suspects,
+           collect(DISTINCT s_geo) AS geo_suspects,
+           count(DISTINCT r) + count(DISTINCT r_v) AS total_interactions
+      
+      WITH v, total_interactions,
+           [s IN (rel_suspects + meta_suspects + geo_suspects) WHERE s IS NOT NULL] AS all_connected
       
       RETURN {
         victim_id: v.victimId,
@@ -146,8 +160,14 @@ export class VictimMappingService {
         total_amount_lost: v.totalAmountLost,
         safety_status: v.safetyStatus,
         harassment_severity: v.harassmentSeverity,
-        connected_suspects: [cs IN connected_suspects WHERE cs.suspect_id IS NOT NULL],
-        call_count: total_calls,
+        connected_suspects: [s IN all_connected | {
+          suspect_id: s.id,
+          suspect_name: s.name,
+          suspect_phone: s.phone,
+          risk_score: s.riskScore,
+          network_role: s.networkRole
+        }],
+        call_count: total_interactions,
         risk_level: CASE
           WHEN v.harassmentSeverity = 'CRITICAL' OR v.safetyStatus = 'THREATENED' THEN 'CRITICAL'
           WHEN v.harassmentSeverity = 'HIGH' OR v.totalAmountLost > 500000 THEN 'HIGH'
@@ -189,7 +209,7 @@ export class VictimMappingService {
     investigationId: string,
   ): Promise<ConvergencePoint[]> {
     this.logger.log(
-      `Finding convergence points for ${investigationId}`,
+      `Finding convergence points for ${investigationId} (Hybrid)`,
       'VictimMappingService',
     );
 
@@ -200,31 +220,18 @@ export class VictimMappingService {
       WHERE s1.id < s2.id
       AND cdr1.callerTowerId = cdr2.callerTowerId
       
-      // Get tower coordinates
-      OPTIONAL MATCH (i)-[:HAS_TOWER]->(tower:CellTower {towerId: cdr1.callerTowerId})
-      
-      WITH v, tower,
+      WITH v, cdr1.callerTowerId AS tower_id,
            collect(DISTINCT s1.name) + collect(DISTINCT s2.name) AS callers,
            count(*) AS interaction_count
-      
-      WHERE tower IS NOT NULL
       
       RETURN {
         victim_id: v.victimId,
         victim_name: v.name,
-        convergence_lat: tower.latitude,
-        convergence_lon: tower.longitude,
+        tower_id: tower_id,
         unique_callers: size(callers),
         caller_names: callers,
-        total_interactions: interaction_count,
-        zone_severity: CASE
-          WHEN interaction_count > 50 THEN 'CRITICAL'
-          WHEN interaction_count > 20 THEN 'HIGH'
-          WHEN interaction_count > 10 THEN 'MEDIUM'
-          ELSE 'LOW'
-        END
-      } AS convergence
-      
+        total_interactions: interaction_count
+      } AS raw_convergence
       ORDER BY interaction_count DESC
     `;
 
@@ -232,11 +239,46 @@ export class VictimMappingService {
       const records = await this.neo4jService.readCypher(query, {
         invId: investigationId,
       });
-      const points = records.map(
-        (r) => r.get('convergence') as ConvergencePoint,
+
+      const rawConvergence = records.map((r) =>
+        convertNeo4jIntegers(r.get('raw_convergence')),
       );
+      if (rawConvergence.length === 0) return [];
+
+      // Fetch tower coordinates from Supabase
+      const towerIds = [
+        ...new Set(rawConvergence.map((c) => c.tower_id).filter(Boolean)),
+      ];
+      const towers = await this.supabaseService.getTowersByIds(towerIds);
+      const towerMap = new Map(towers.map((t) => [t.cell_id, t]));
+
+      const points: ConvergencePoint[] = rawConvergence
+        .map((c) => {
+          const towerData = towerMap.get(c.tower_id);
+          if (!towerData) return null;
+
+          return {
+            victim_id: c.victim_id,
+            victim_name: c.victim_name,
+            convergence_lat: towerData.lat,
+            convergence_lon: towerData.lon,
+            unique_callers: c.unique_callers,
+            caller_names: c.caller_names,
+            total_interactions: c.total_interactions,
+            zone_severity:
+              c.total_interactions > 50
+                ? 'CRITICAL'
+                : c.total_interactions > 20
+                  ? 'HIGH'
+                  : c.total_interactions > 10
+                    ? 'MEDIUM'
+                    : 'LOW',
+          };
+        })
+        .filter(Boolean) as ConvergencePoint[];
+
       this.logger.success(
-        `Found ${points.length} convergence points`,
+        `Found ${points.length} convergence points via Supabase coordinates`,
         'VictimMappingService',
       );
       return points;
@@ -364,6 +406,17 @@ export class VictimMappingService {
     const query = `
       MATCH (i:Investigation {id: $invId})-[:CONTAINS]->(s:Suspect {id: $suspectId})
       
+      // Get historical trajectory points from properties
+      WITH i, s,
+           CASE 
+             WHEN s.trajectoryHistory IS NOT NULL 
+             THEN split(s.trajectoryHistory, '|') 
+             ELSE [] 
+           END AS historical_points
+      
+      UNWIND (CASE WHEN size(historical_points) > 0 THEN historical_points ELSE [null] END) AS hpStr
+      WITH i, s, hpStr
+      
       // Get historical CDR points
       OPTIONAL MATCH (s)-[cdr:CDR_CALL]->(receiver)
       OPTIONAL MATCH (i)-[:HAS_TOWER]->(tower:CellTower {towerId: cdr.callerTowerId})
@@ -371,8 +424,15 @@ export class VictimMappingService {
       // Get real-time Event points
       OPTIONAL MATCH (s)-[:PINGED]->(event:Event)
       
-      WITH s, cdr, tower, receiver, event
+      WITH i, s, cdr, tower, receiver, event, hpStr
       
+      // Parse historical point string
+      WITH i, s, cdr, tower, receiver, event, hpStr,
+           CASE 
+             WHEN hpStr IS NOT NULL THEN split(hpStr, ',')
+             ELSE []
+           END AS hpCoords
+           
       // Create unified points
       WITH 
         CASE 
@@ -402,13 +462,26 @@ export class VictimMappingService {
             duration_seconds: cdr.duration,
             type: 'CDR'
           }
+          WHEN size(hpCoords) = 2 THEN {
+            call_id: 'hist-' + toString(id(s)) + '-' + hpStr,
+            timestamp: '0000-00-00T00:00:00.000Z', // Baseline for ordering if no actual time exists
+            position: {
+              latitude: toFloat(hpCoords[0]),
+              longitude: toFloat(hpCoords[1]),
+              tower_id: null
+            },
+            tower_location: 'Historical Coordinate',
+            receiver_phone: 'N/A',
+            duration_seconds: 0,
+            type: 'HISTORY'
+          }
           ELSE NULL
         END AS p
       
       WHERE p IS NOT NULL
       
-      RETURN p AS trajectory
-      ORDER BY p.timestamp ASC
+      RETURN DISTINCT p AS trajectory
+      ORDER BY p.type DESC, p.timestamp ASC
     `;
 
     try {
@@ -416,14 +489,81 @@ export class VictimMappingService {
         invId: investigationId,
         suspectId,
       });
-      const points = records.map(
-        (r) => convertNeo4jIntegers(r.get('trajectory')) as TrajectoryPoint,
-      );
-      this.logger.success(
-        `Found ${points.length} unified trajectory points for ${suspectId}`,
+
+      // Debug logging
+      this.logger.log(
+        `Raw query returned ${records.length} records`,
         'VictimMappingService',
       );
-      return points;
+
+      const rawPoints = records
+        .map((r) => convertNeo4jIntegers(r.get('trajectory')))
+        .filter(Boolean);
+
+      this.logger.log(
+        `Filtered to ${rawPoints.length} valid trajectory points`,
+        'VictimMappingService',
+      );
+
+      if (rawPoints.length === 0) {
+        // Additional diagnostic query to see what's available
+        const diagnosticQuery = `
+          MATCH (i:Investigation {id: $invId})-[:CONTAINS]->(s:Suspect {id: $suspectId})
+          OPTIONAL MATCH (s)-[cdr:CDR_CALL]->()
+          OPTIONAL MATCH (i)-[:HAS_TOWER]->(t:CellTower)
+          RETURN 
+            count(DISTINCT cdr) as cdrCount,
+            count(DISTINCT t) as towerCount,
+            collect(DISTINCT cdr.callerTowerId)[0..5] as sampleTowerIds,
+            collect(DISTINCT t.towerId)[0..5] as availableTowerIds
+        `;
+
+        const diagnostic = await this.neo4jService.readCypher(diagnosticQuery, {
+          invId: investigationId,
+          suspectId,
+        });
+
+        if (diagnostic.length > 0) {
+          const diag = convertNeo4jIntegers(diagnostic[0].toObject());
+          this.logger.warn(
+            `Trajectory empty but found: ${diag.cdrCount} CDR records, ${diag.towerCount} towers. ` +
+              `Sample CDR tower IDs: ${JSON.stringify(diag.sampleTowerIds)}, ` +
+              `Available tower IDs: ${JSON.stringify(diag.availableTowerIds)}`,
+            'VictimMappingService',
+          );
+        }
+
+        return [];
+      }
+
+      const towerIds = [
+        ...new Set(rawPoints.map((p) => p.position.tower_id).filter(Boolean)),
+      ];
+      const towers = await this.supabaseService.getTowersByIds(towerIds);
+      const towerMap = new Map(towers.map((t) => [t.cell_id, t]));
+
+      const trajectory: TrajectoryPoint[] = rawPoints
+        .map((p) => {
+          const towerData = towerMap.get(p.position.tower_id);
+          if (!towerData && p.type === 'CDR') return null;
+
+          return {
+            call_id: p.call_id,
+            timestamp: p.timestamp,
+            position: {
+              latitude: towerData?.lat || p.position.latitude,
+              longitude: towerData?.lon || p.position.longitude,
+              tower_id: p.position.tower_id,
+            },
+            range_km: towerData?.range_km || 2, // Default 2km if unknown
+            tower_location: towerData?.name || p.tower_location,
+            receiver_phone: p.receiver_phone,
+            duration_seconds: p.duration_seconds,
+          };
+        })
+        .filter(Boolean) as TrajectoryPoint[];
+
+      return trajectory;
     } catch (error) {
       this.logger.error(
         `Failed to track trajectory: ${error}`,
@@ -480,6 +620,95 @@ export class VictimMappingService {
     } catch (error) {
       this.logger.error(
         `Failed to find collaborative calls: ${error}`,
+        undefined,
+        'VictimMappingService',
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Get suspects who called or contacted a specific victim
+   * Returns suspects from suspects_enhanced.csv that have relationships with the victim
+   */
+  async getSuspectsForVictim(
+    investigationId: string,
+    victimPhone: string,
+  ): Promise<
+    Array<{
+      suspect_id: string;
+      suspect_name: string;
+      suspect_phone: string;
+      connection_type: string;
+      interaction_count: number;
+      risk_level: string;
+    }>
+  > {
+    this.logger.log(
+      `Finding suspects for victim ${victimPhone} in investigation ${investigationId}`,
+      'VictimMappingService',
+    );
+
+    const query = `
+      MATCH (i:Investigation {id: $invId})-[:CONTAINS]->(victim:Suspect {phone: $victimPhone})
+      WHERE victim.isVictim = true OR victim.status = 'VICTIM'
+      
+      // Find suspects who called the victim via CDR
+      OPTIONAL MATCH (i)-[:CONTAINS]->(suspect_cdr:Suspect)-[cdr:CDR_CALL]->(victim)
+      WHERE suspect_cdr.isVictim IS NULL 
+        AND suspect_cdr.status <> 'VICTIM'
+        AND suspect_cdr.phone <> $victimPhone
+      
+      // Find suspects connected via transactions
+      OPTIONAL MATCH (i)-[:CONTAINS]->(suspect_tx:Suspect)-[tx:TRANSACTION]-(victim)
+      WHERE suspect_tx.isVictim IS NULL 
+        AND suspect_tx.status <> 'VICTIM'
+        AND suspect_tx.phone <> $victimPhone
+      
+      // Collect all unique suspects with their connection info
+      WITH suspect_cdr, suspect_tx
+      WHERE suspect_cdr IS NOT NULL OR suspect_tx IS NOT NULL
+      
+      WITH COALESCE(suspect_cdr, suspect_tx) AS suspect,
+           CASE 
+             WHEN suspect_cdr IS NOT NULL THEN 'CDR_CALL'
+             WHEN suspect_tx IS NOT NULL THEN 'TRANSACTION'
+             ELSE 'UNKNOWN'
+           END AS connection_type
+      
+      // Get interaction count for each suspect
+      WITH suspect, connection_type, count(*) as interactions
+      
+      RETURN DISTINCT {
+        suspect_id: suspect.id,
+        suspect_name: suspect.name,
+        suspect_phone: suspect.phone,
+        connection_type: connection_type,
+        interaction_count: interactions,
+        risk_level: COALESCE(suspect.risk, suspect.riskLevel, 'UNKNOWN')
+      } AS suspect_data
+      ORDER BY suspect_data.interaction_count DESC, suspect_data.suspect_name
+    `;
+
+    try {
+      const records = await this.neo4jService.readCypher(query, {
+        invId: investigationId,
+        victimPhone,
+      });
+
+      const suspects = records.map((r) =>
+        convertNeo4jIntegers(r.get('suspect_data')),
+      );
+
+      this.logger.success(
+        `Found ${suspects.length} suspects connected to victim ${victimPhone}`,
+        'VictimMappingService',
+      );
+
+      return suspects;
+    } catch (error) {
+      this.logger.error(
+        `Failed to get suspects for victim: ${error}`,
         undefined,
         'VictimMappingService',
       );

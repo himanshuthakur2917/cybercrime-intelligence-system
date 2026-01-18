@@ -62,23 +62,44 @@ export function middleware(request: NextRequest) {
 
   // 2. Find route config
   const config = ROUTE_CONFIG.find(
-    (route) => pathname === route.path || pathname.startsWith(route.path + "/")
+    (route) => pathname === route.path || pathname.startsWith(route.path + "/"),
   );
 
   // 3. Handle public routes
   if (config?.isPublic) {
-    // If authenticated and trying to access login page, redirect to correct dashboard
+    // If authenticated and trying to access login page, redirect to correct dashboard with reload
     if (pathname === "/" && isAuthenticated) {
       const dashboard = role === "administrator" ? "/admin" : "/dashboard";
-      return NextResponse.redirect(new URL(dashboard, request.url));
+
+      // Create redirect response with cache-busting to force reload
+      const redirectUrl = new URL(dashboard, request.url);
+      redirectUrl.searchParams.set("_reload", Date.now().toString());
+
+      const response = NextResponse.redirect(redirectUrl);
+      // Add headers to prevent caching and force reload
+      response.headers.set(
+        "Cache-Control",
+        "no-store, no-cache, must-revalidate, proxy-revalidate",
+      );
+      response.headers.set("Pragma", "no-cache");
+      response.headers.set("Expires", "0");
+
+      return response;
     }
     return NextResponse.next();
   }
 
   // 4. Handle protected routes
   if (!isAuthenticated) {
-    // If not authenticated, redirect to login
-    return NextResponse.redirect(new URL("/", request.url));
+    // If not authenticated, redirect to login with reload
+    const loginUrl = new URL("/", request.url);
+    const response = NextResponse.redirect(loginUrl);
+    response.headers.set(
+      "Cache-Control",
+      "no-store, no-cache, must-revalidate",
+    );
+
+    return response;
   }
 
   // 5. Check role permissions
@@ -86,11 +107,25 @@ export function middleware(request: NextRequest) {
     const hasPermission = config.allowedRoles.includes(role || "");
 
     if (!hasPermission) {
-      // If no permission, redirect to designated fallback or default dashboard
+      // If no permission, redirect to designated fallback or default dashboard with reload
       const fallback =
         config.redirectTo ||
         (role === "administrator" ? "/admin" : "/dashboard");
-      return NextResponse.redirect(new URL(fallback, request.url));
+
+      // Create redirect with cache-busting to force reload
+      const redirectUrl = new URL(fallback, request.url);
+      redirectUrl.searchParams.set("_reload", Date.now().toString());
+
+      const response = NextResponse.redirect(redirectUrl);
+      // Force reload headers
+      response.headers.set(
+        "Cache-Control",
+        "no-store, no-cache, must-revalidate",
+      );
+      response.headers.set("Pragma", "no-cache");
+      response.headers.set("Expires", "0");
+
+      return response;
     }
   }
 

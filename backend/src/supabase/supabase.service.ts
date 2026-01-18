@@ -20,6 +20,29 @@ interface RestrictedZoneInput {
   polygon_wkt: string;
 }
 
+interface TowerLocation {
+  cell_id: string;
+  name: string;
+  lat: number;
+  lon: number;
+  range_km: number;
+}
+
+interface TriangulatedPoint {
+  lat: number;
+  lon: number;
+  accuracy_m: number;
+  tower_count: number;
+}
+
+interface PointWithDistance {
+  lat: number;
+  lon: number;
+  distance_km: number;
+  cell_tower_id: string;
+  tower_name: string;
+}
+
 @Injectable()
 export class SupabaseService implements OnModuleInit {
   private client: SupabaseClient;
@@ -53,7 +76,7 @@ export class SupabaseService implements OnModuleInit {
     try {
       // Test connection
       const { error } = await this.client
-        .from('cell_towers')
+        .from('cell_towers_2')
         .select('id')
         .limit(1);
       if (error && !error.message.includes('does not exist')) {
@@ -121,7 +144,7 @@ export class SupabaseService implements OnModuleInit {
     }));
 
     const { data, error } = await this.client
-      .from('cell_towers')
+      .from('cell_towers_2')
       .upsert(rows, { onConflict: 'cell_id' })
       .select('id');
 
@@ -224,7 +247,7 @@ export class SupabaseService implements OnModuleInit {
       return [];
     }
 
-    const { data, error } = await this.client.from('cell_towers').select('*');
+    const { data, error } = await this.client.from('cell_towers_2').select('*');
 
     if (error) {
       this.logger.error(
@@ -258,5 +281,313 @@ export class SupabaseService implements OnModuleInit {
     }
 
     return data || [];
+  }
+
+  /**
+   * Get cell tower locations by their IDs (for hybrid Neo4j + Supabase)
+   */
+  async getTowersByIds(towerIds: string[]): Promise<TowerLocation[]> {
+    if (!this.client || !towerIds || towerIds.length === 0) {
+      return [];
+    }
+
+    const { data, error } = await this.client
+      .from('cell_towers_2')
+      .select('cell_id, name, lat, lon, range_km')
+      .in('cell_id', towerIds);
+
+    if (error) {
+      this.logger.error(
+        `Get towers by IDs error: ${error.message}`,
+        'SupabaseService',
+      );
+      return [];
+    }
+
+    return (data || []).map((tower: any) => {
+      // Defensive parsing for lat/lon in case generated columns are missing
+      let lat = tower.lat;
+      let lon = tower.lon;
+
+      if (lat === undefined || lat === null) {
+        if (tower.location?.type === 'Point') {
+          lat = tower.location.coordinates[1];
+          lon = tower.location.coordinates[0];
+        } else if (typeof tower.location === 'string') {
+          const match = tower.location.match(
+            /POINT\s*\(\s*([-\d.]+)\s+([-\d.]+)\s*\)/i,
+          );
+          if (match) {
+            lon = parseFloat(match[1]);
+            lat = parseFloat(match[2]);
+          }
+        }
+      }
+
+      const finalLat = parseFloat(lat) || 0;
+      const finalLon = parseFloat(lon) || 0;
+
+      return {
+        cell_id: tower.cell_id,
+        name: tower.name || tower.cell_id,
+        lat: finalLat,
+        lon: finalLon,
+        latitude: finalLat,
+        longitude: finalLon,
+        range_km: parseFloat(tower.range_km) || 2.0,
+      };
+    });
+  }
+
+  /**
+   * Triangulate position using multiple cell towers (PostGIS RPC)
+   */
+  async triangulatePosition(
+    towerIds: string[],
+    ranges?: number[],
+  ): Promise<TriangulatedPoint | null> {
+    if (!this.client || !towerIds || towerIds.length === 0) {
+      return null;
+    }
+
+    const { data, error } = await this.client.rpc('triangulate_position', {
+      tower_ids: towerIds,
+      tower_ranges: ranges || null,
+    });
+
+    if (error) {
+      this.logger.error(
+        `Triangulation error: ${error.message}`,
+        'SupabaseService',
+      );
+      return null;
+    }
+
+    if (!data || data.length === 0) {
+      return null;
+    }
+
+    return data[0] as TriangulatedPoint;
+  }
+
+  /**
+   * Get callers within range of a point (PostGIS range query)
+   */
+  async getCallersInRange(
+    centerLat: number,
+    centerLon: number,
+    rangeKm: number,
+  ): Promise<PointWithDistance[]> {
+    if (!this.client) {
+      return [];
+    }
+
+    const { data, error } = await this.client.rpc('get_callers_in_range', {
+      victim_lat: centerLat,
+      victim_lon: centerLon,
+      range_km: rangeKm,
+    });
+
+    if (error) {
+      this.logger.error(
+        `Range query error: ${error.message}`,
+        'SupabaseService',
+      );
+      return [];
+    }
+
+    return (data || []) as PointWithDistance[];
+  }
+
+  /**
+   * Calculate distance between two points using PostGIS
+   */
+  async calculateDistance(
+    lat1: number,
+    lon1: number,
+    lat2: number,
+    lon2: number,
+  ): Promise<number> {
+    if (!this.client) {
+      return 0;
+    }
+
+    const { data, error } = await this.client.rpc('calculate_distance_km', {
+      lat1,
+      lon1,
+      lat2,
+      lon2,
+    });
+
+    if (error) {
+      this.logger.error(
+        `Distance calculation error: ${error.message}`,
+        'SupabaseService',
+      );
+      return 0;
+    }
+
+    return data || 0;
+  }
+
+  /**
+   * Filter points within range of center (used for map markers)
+   */
+  async filterPointsInRange(
+    centerLat: number,
+    centerLon: number,
+    rangeKm: number,
+    points: Array<{ lat: number; lon: number; [key: string]: any }>,
+  ): Promise<
+    Array<{ lat: number; lon: number; distance_km: number; [key: string]: any }>
+  > {
+    if (!this.client || !points || points.length === 0) {
+      return [];
+    }
+
+    // Calculate distance for each point
+    const enriched = await Promise.all(
+      points.map(async (point) => {
+        const distance = await this.calculateDistance(
+          centerLat,
+          centerLon,
+          point.lat,
+          point.lon,
+        );
+        return { ...point, distance_km: distance };
+      }),
+    );
+
+    // Filter by range
+    return enriched.filter((p) => p.distance_km <= rangeKm);
+  }
+
+  /**
+   * Get all cell towers from Supabase (for map display)
+   * Uses PostGIS to extract coordinates from geography column
+   */
+  async getAllCellTowers(): Promise<TowerLocation[]> {
+    if (!this.client) {
+      return [];
+    }
+
+    try {
+      // Use RPC to get towers with PostGIS coordinate extraction from cell_towers_2
+      const { data, error } = await this.client.rpc('get_all_towers_v2', {
+        limit_count: 1000,
+      });
+
+      if (error) {
+        this.logger.warn(
+          `RPC get_all_towers_v2 not available, trying direct query: ${error.message}`,
+          'SupabaseService',
+        );
+
+        // Fallback: Direct query from cell_towers_2
+        const { data: rawData, error: queryError } = await this.client
+          .from('cell_towers_2')
+          .select('*');
+
+        if (queryError) {
+          this.logger.error(
+            `Get all cell towers error: ${queryError.message}`,
+            'SupabaseService',
+          );
+          return [];
+        }
+
+        // Transform raw PostGIS data
+        // When PostGIS geography is returned directly, we need to parse it
+        return (rawData || []).map((tower: any) => {
+          // Check if location is already in GeoJSON format
+          let lon = 0,
+            lat = 0;
+
+          if (tower.location?.type === 'Point') {
+            // GeoJSON format: {type: 'Point', coordinates: [lon, lat]}
+            lon = tower.location.coordinates[0];
+            lat = tower.location.coordinates[1];
+          } else if (typeof tower.location === 'string') {
+            // WKT format: "POINT(lon lat)"
+            const match = tower.location.match(
+              /POINT\s*\(\s*([-\d.]+)\s+([-\d.]+)\s*\)/i,
+            );
+            if (match) {
+              lon = parseFloat(match[1]);
+              lat = parseFloat(match[2]);
+            }
+          }
+
+          return {
+            cell_id: tower.cell_id,
+            name: tower.name || tower.cell_id,
+            lon,
+            lat,
+            range_km: tower.range_km || 2.0,
+          };
+        });
+      }
+
+      // RPC returned successfully - data is already in the right format
+      return (data || []).map((tower: any) => ({
+        cell_id: tower.cell_id,
+        name: tower.name || '',
+        lon: tower.lon,
+        lat: tower.lat,
+        range_km: tower.range_km || 2.0,
+      }));
+    } catch (err) {
+      this.logger.error(
+        `Unexpected error in getAllCellTowers: ${err}`,
+        'SupabaseService',
+      );
+      return [];
+    }
+  }
+
+  /**
+   * Get cell towers within a geographic bounding box (for map viewport)
+   * More efficient than loading all 850k towers
+   */
+  async getTowersInBounds(
+    minLat: number,
+    minLon: number,
+    maxLat: number,
+    maxLon: number,
+  ): Promise<TowerLocation[]> {
+    if (!this.client) {
+      return [];
+    }
+
+    try {
+      const { data, error } = await this.client.rpc('get_towers_in_bounds_v2', {
+        min_lat: minLat,
+        min_lon: minLon,
+        max_lat: maxLat,
+        max_lon: maxLon,
+      });
+
+      if (error) {
+        this.logger.error(
+          `Get towers in bounds error: ${error.message}`,
+          'SupabaseService',
+        );
+        return [];
+      }
+
+      return (data || []).map((tower: any) => ({
+        cell_id: tower.cell_id,
+        name: tower.name || '',
+        lon: tower.lon,
+        lat: tower.lat,
+        range_km: tower.range_km || 2.0,
+      }));
+    } catch (err) {
+      this.logger.error(
+        `Error getting towers in bounds: ${err}`,
+        'SupabaseService',
+      );
+      return [];
+    }
   }
 }

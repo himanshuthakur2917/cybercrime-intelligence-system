@@ -1,9 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { Neo4jService } from 'src/neo4j/neo4j.service';
 import { LoggerService } from 'src/common/logger/logger.service';
+import { SupabaseService } from 'src/supabase/supabase.service';
 import {
   ExtendedCsvData,
   Investigation,
+  Suspects,
 } from './interfaces/investigation.interface';
 import { Record, Node, Relationship } from 'neo4j-driver';
 
@@ -14,6 +16,8 @@ export interface GraphNode {
   riskScore?: number;
   networkRole?: string;
   status?: string;
+  lastKnownLocation?: string;
+  trajectoryHistory?: string;
 }
 
 export interface GraphEdge {
@@ -39,6 +43,7 @@ export class InvestigationsService {
 
   constructor(
     private readonly neo4jService: Neo4jService,
+    private readonly supabaseService: SupabaseService,
     private readonly logger: LoggerService,
   ) {}
 
@@ -231,33 +236,50 @@ export class InvestigationsService {
                estimatedAssets: suspect.estimatedAssets,
                teamSize: suspect.teamSize,
                operationalCapability: suspect.operationalCapability,
-               arrestWarrantIssued: suspect.arrestWarrantIssued
+               arrestWarrantIssued: suspect.arrestWarrantIssued,
+               trajectoryHistory: suspect.trajectoryHistory
              })
              CREATE (i)-[:CONTAINS]->(s)`,
             {
               invId: investigationId,
-              suspects: batch.map((s) => ({
-                suspectId: s.suspect_id,
-                name: s.name,
-                phone: s.phone,
-                alternatePhone: s.alternate_phone || null,
+              suspects: batch.map((s: any) => ({
+                suspectId: s.suspect_id || s.id || `suspect_${s.phone}`,
+                name: s.name || `Unknown (${s.phone})`,
+                phone: String(s.phone),
+                alternatePhone: s.alternate_phone || s.alt_phones || null,
+                allPhones: [
+                  String(s.phone),
+                  ...(s.alternate_phone || s.alt_phones || '')
+                    .split('|')
+                    .filter((p: string) => p.trim().length > 0),
+                ],
                 account: s.account || null,
                 bankName: s.bank_name || null,
-                firId: s.fir_id,
-                status: s.status,
-                aliasNames: s.alias_names || null,
-                riskScore: parseFloat(String(s.risk_score)) || 0,
+                firId: s.fir_id || s.fir_number || 'default',
+                status: s.status || 'ACTIVE',
+                aliasNames: s.alias_names || s.alias || null,
+                riskScore:
+                  parseFloat(String(s.risk_score || 0)) ||
+                  (s.risk === 'CRITICAL'
+                    ? 90
+                    : s.risk === 'HIGH'
+                      ? 70
+                      : s.risk === 'MEDIUM'
+                        ? 50
+                        : 20),
                 knownAssociates: s.known_associates || null,
                 lastKnownLocation: s.last_known_location || null,
+                trajectoryHistory: s.trajectory_history || null,
                 aadharHash: s.aadhar_hash || null,
                 panHash: s.pan_hash || null,
                 deviceImei: s.device_imei || null,
                 networkRole: s.network_role || 'UNKNOWN',
                 devicePhones: s.device_phones || null,
-                networkHierarchyLevel:
-                  parseInt(String(s.network_hierarchy_level)) || 0,
+                networkHierarchyLevel: parseInt(
+                  String(s.network_hierarchy_level || 1),
+                ),
                 estimatedAssets: s.estimated_assets || null,
-                teamSize: parseInt(String(s.team_size)) || 0,
+                teamSize: parseInt(String(s.team_size || 0)),
                 operationalCapability: s.operational_capability || null,
                 arrestWarrantIssued: s.arrest_warrant_issued || 'NO',
               })),
@@ -434,19 +456,59 @@ export class InvestigationsService {
             `MATCH (i:Investigation {id: $invId})
              WITH i
              UNWIND $cdrRecords AS cdr
-             MERGE (s1:Suspect {phone: cdr.callerPhone})
-             ON CREATE SET s1.id = 'suspect_' + cdr.callerPhone, 
-                          s1.name = 'Unknown (' + cdr.callerPhone + ')', 
-                          s1.status = 'UNKNOWN'
-             MERGE (i)-[:CONTAINS]->(s1)
-             WITH i, cdr, s1
-             MERGE (s2:Suspect {phone: cdr.receiverPhone})
-             ON CREATE SET s2.id = 'suspect_' + cdr.receiverPhone, 
-                          s2.name = 'Unknown (' + cdr.receiverPhone + ')', 
-                          s2.status = 'UNKNOWN'
-             MERGE (i)-[:CONTAINS]->(s2)
-             WITH cdr, s1, s2
-             CREATE (s1)-[r:CDR_CALL {
+             
+             // Find existing suspect by checking if caller phone is in their allPhones array
+             OPTIONAL MATCH (existing_s1:Suspect)
+             WHERE (i)-[:CONTAINS]->(existing_s1) 
+               AND cdr.callerPhone IN existing_s1.allPhones
+             
+             // If not found, create unknown suspect
+             WITH i, cdr, existing_s1
+             CALL {
+               WITH i, cdr, existing_s1
+               WITH i, cdr, existing_s1
+               WHERE existing_s1 IS NULL
+               MERGE (unknown_s1:Suspect {phone: cdr.callerPhone})
+               ON CREATE SET unknown_s1.id = 'suspect_' + cdr.callerPhone,
+                            unknown_s1.name = 'Unknown (' + cdr.callerPhone + ')',
+                            unknown_s1.status = 'UNKNOWN',
+                            unknown_s1.allPhones = [cdr.callerPhone]
+               MERGE (i)-[:CONTAINS]->(unknown_s1)
+               RETURN unknown_s1 AS s1_final
+               UNION
+               WITH existing_s1
+               WHERE existing_s1 IS NOT NULL
+               RETURN existing_s1 AS s1_final
+             }
+             
+             // Find existing suspect for receiver by checking allPhones array
+             WITH i, cdr, s1_final
+             OPTIONAL MATCH (existing_s2:Suspect)
+             WHERE (i)-[:CONTAINS]->(existing_s2)
+               AND cdr.receiverPhone IN existing_s2.allPhones
+             
+             // If not found, create unknown suspect
+             WITH i, cdr, s1_final, existing_s2
+             CALL {
+               WITH i, cdr, existing_s2
+               WITH i, cdr, existing_s2
+               WHERE existing_s2 IS NULL
+               MERGE (unknown_s2:Suspect {phone: cdr.receiverPhone})
+               ON CREATE SET unknown_s2.id = 'suspect_' + cdr.receiverPhone,
+                            unknown_s2.name = 'Unknown (' + cdr.receiverPhone + ')',
+                            unknown_s2.status = 'UNKNOWN',
+                            unknown_s2.allPhones = [cdr.receiverPhone]
+               MERGE (i)-[:CONTAINS]->(unknown_s2)
+               RETURN unknown_s2 AS s2_final
+               UNION
+               WITH existing_s2
+               WHERE existing_s2 IS NOT NULL
+               RETURN existing_s2 AS s2_final
+             }
+             
+             // Create CDR_CALL relationship
+             WITH cdr, s1_final, s2_final
+             CREATE (s1_final)-[r:CDR_CALL {
                callId: cdr.callId,
                callerTowerId: cdr.callerTowerId,
                receiverTowerId: cdr.receiverTowerId,
@@ -459,24 +521,55 @@ export class InvestigationsService {
                matchedTransactionId: cdr.matchedTransactionId,
                suspectMovementSequenceNumber: cdr.suspectMovementSequenceNumber,
                prosecutionReadiness: cdr.prosecutionReadiness
-             }]->(s2)`,
+             }]->(s2_final)`,
             {
               invId: investigationId,
-              cdrRecords: batch.map((cdr) => ({
-                callerPhone: cdr.caller_phone || '',
-                receiverPhone: cdr.receiver_phone || '',
-                callId: cdr.call_id || `call_${Date.now()}_${Math.random()}`,
-                callerTowerId: cdr.caller_tower_id || null,
+              cdrRecords: batch.map((cdr: any) => ({
+                callerPhone:
+                  cdr.caller_phone ||
+                  cdr.callerPhone ||
+                  String(cdr.caller_phone) ||
+                  '',
+                receiverPhone:
+                  cdr.receiver_phone ||
+                  cdr.receiverPhone ||
+                  cdr.callee_phone ||
+                  String(cdr.callee_phone) ||
+                  '',
+                callId:
+                  cdr.call_id ||
+                  cdr.callId ||
+                  cdr.txn_id ||
+                  `call_${Date.now()}_${Math.random()}`,
+                callerTowerId:
+                  cdr.caller_tower_id ||
+                  cdr.cell_tower_id ||
+                  cdr.tower_id ||
+                  null,
                 receiverTowerId: cdr.receiver_tower_id || null,
-                callStartTime: cdr.call_start_time || new Date().toISOString(),
-                duration: parseInt(String(cdr.call_duration_seconds)) || 0,
+                callStartTime:
+                  cdr.call_start_time ||
+                  cdr.timestamp ||
+                  cdr.date ||
+                  new Date().toISOString(),
+                duration: parseInt(
+                  String(
+                    cdr.call_duration_seconds ||
+                      cdr.duration_sec ||
+                      cdr.duration ||
+                      0,
+                  ),
+                ),
                 proximityPattern: cdr.proximity_pattern || 'UNKNOWN',
-                distance: parseFloat(String(cdr.approximate_distance_km)) || 0,
+                distance: parseFloat(
+                  String(cdr.approximate_distance_km || cdr.distance || 0),
+                ),
                 matchedSuspectId: cdr.matched_suspect_id || null,
                 matchedVictimId: cdr.matched_victim_id || null,
                 matchedTransactionId: cdr.matched_transaction_id || null,
-                suspectMovementSequenceNumber:
-                  parseInt(String(cdr.suspect_movement_sequence_number)) || 0,
+                suspectMovementSequenceNumber: parseInt(
+                  String(cdr.suspect_movement_sequence_number || 0),
+                ),
                 prosecutionReadiness: cdr.prosecution_readiness || 'NOT_READY',
               })),
             },
@@ -597,19 +690,24 @@ export class InvestigationsService {
              MERGE (i)-[:CONTAINS]->(vs)`,
             {
               invId: investigationId,
-              victims: batch.map((v) => ({
-                victimId: v.victim_id,
-                name: v.name || 'Unknown',
+              victims: batch.map((v: any) => ({
+                victimId:
+                  v.victim_id || v.id || `vic_${Date.now()}_${Math.random()}`,
+                name: v.name || v.victim_name || 'Unknown',
                 phone: String(v.phone) || '',
                 alternatePhone: v.alternate_phone
                   ? String(v.alternate_phone)
                   : null,
-                reportedIncident: v.reported_incident || '',
-                firstReportDate: v.first_report_date || null,
+                reportedIncident:
+                  v.reported_incident || v.reported_loss || 'Fraud Incident',
+                firstReportDate:
+                  v.first_report_date || v.complaint_date || null,
                 lastContactDate: v.last_contact_date || null,
-                callsReceived: parseInt(String(v.calls_received)) || 0,
-                avgCallsDaywise: parseFloat(String(v.avg_calls_daywise)) || 0,
-                totalAmountLost: parseInt(String(v.total_amount_lost)) || 0,
+                callsReceived: parseInt(String(v.calls_received || 0)),
+                avgCallsDaywise: parseFloat(String(v.avg_calls_daywise || 0)),
+                totalAmountLost: parseInt(
+                  String(v.total_amount_lost || v.reported_loss || 0),
+                ),
                 areaOfIncident: v.area_of_incident || '',
                 policeStation: v.police_station || null,
                 firNumber: v.fir_number || null,
@@ -621,8 +719,9 @@ export class InvestigationsService {
                 maxSingleLossTxn: v.max_single_loss_txn || null,
                 recoveryAmount: v.recovery_amount || null,
                 harassmentSeverity: v.harassment_severity || 'UNKNOWN',
-                perpetratorNetworkEstimated:
-                  parseInt(String(v.perpetrator_network_estimated)) || 0,
+                perpetratorNetworkEstimated: parseInt(
+                  String(v.perpetrator_network_estimated || 0),
+                ),
               })),
             },
           );
@@ -1009,5 +1108,144 @@ export class InvestigationsService {
        LIMIT 20`,
       { invId: investigationId },
     );
+  }
+
+  /**
+   * Sync cell towers from Supabase to Neo4j as global CellTower nodes
+   * Creates towers and links them to all Investigation nodes via HAS_TOWER
+   */
+  async syncTowersToNeo4j(
+    investigationId: string,
+  ): Promise<{ towerCount: number; message: string }> {
+    this.logger.log(
+      `Syncing cell towers from Supabase to Neo4j for investigation ${investigationId}`,
+      'InvestigationsService',
+    );
+
+    try {
+      // Step 1: Get unique tower IDs used in this investigation's CDR records
+      const towerQuery = `
+        MATCH (i:Investigation {id: $invId})-[:CONTAINS]->(s:Suspect)
+        OPTIONAL MATCH (s)-[cdr:CDR_CALL]->()
+        WITH collect(DISTINCT cdr.callerTowerId) + collect(DISTINCT cdr.receiverTowerId) AS allTowerIds
+        UNWIND allTowerIds AS towerId
+        WITH towerId
+        WHERE towerId IS NOT NULL
+        RETURN DISTINCT towerId
+      `;
+
+      const towerRecords = await this.neo4jService.readCypher(towerQuery, {
+        invId: investigationId,
+      });
+
+      const towerIds = towerRecords
+        .map((r) => r.get('towerId'))
+        .filter(Boolean) as string[];
+
+      if (towerIds.length === 0) {
+        this.logger.warn(
+          `No tower IDs found in CDR records for investigation ${investigationId}`,
+          'InvestigationsService',
+        );
+        return {
+          towerCount: 0,
+          message: 'No tower IDs found in CDR records',
+        };
+      }
+
+      this.logger.log(
+        `Found ${towerIds.length} unique tower IDs in investigation`,
+        'InvestigationsService',
+      );
+      this.logger.log(
+        `First 10 tower IDs: ${JSON.stringify(towerIds.slice(0, 10))}`,
+        'InvestigationsService',
+      );
+
+      // Step 2: Fetch tower coordinates from Supabase
+      this.logger.log(
+        `Fetching tower data from Supabase for ${towerIds.length} tower IDs...`,
+        'InvestigationsService',
+      );
+      const towers = await this.supabaseService.getTowersByIds(towerIds);
+
+      this.logger.log(
+        `Supabase returned ${towers.length} towers`,
+        'InvestigationsService',
+      );
+
+      if (towers.length > 0) {
+        this.logger.log(
+          `Sample tower from Supabase: ${JSON.stringify(towers[0])}`,
+          'InvestigationsService',
+        );
+      }
+
+      if (towers.length === 0) {
+        this.logger.warn(
+          `No tower coordinates found in Supabase for ${towerIds.length} tower IDs`,
+          'InvestigationsService',
+        );
+        return {
+          towerCount: 0,
+          message: 'No tower data found in Supabase',
+        };
+      }
+
+      this.logger.log(
+        `Fetched ${towers.length} tower coordinates from Supabase`,
+        'InvestigationsService',
+      );
+
+      // Step 3: Create global CellTower nodes and link to ALL investigations
+      await this.batchProcess(towers, async (batch) => {
+        await this.neo4jService.writeCypher(
+          `UNWIND $towers AS tower
+           // Create or update global CellTower node
+           MERGE (t:CellTower {towerId: tower.towerId})
+           ON CREATE SET 
+             t.towerLocation = tower.towerLocation,
+             t.latitude = tower.latitude,
+             t.longitude = tower.longitude,
+             t.coverageRadiusKm = tower.coverageRadiusKm
+           ON MATCH SET
+             t.towerLocation = tower.towerLocation,
+             t.latitude = tower.latitude,
+             t.longitude = tower.longitude,
+             t.coverageRadiusKm = tower.coverageRadiusKm
+           
+           // Link to ALL Investigation nodes
+           WITH t
+           MATCH (i:Investigation)
+           MERGE (i)-[:HAS_TOWER]->(t)`,
+          {
+            towers: batch.map((t) => ({
+              towerId: t.cell_id,
+              towerLocation: t.name || t.cell_id,
+              latitude: t.lat,
+              longitude: t.lon,
+              coverageRadiusKm: t.range_km || 2.0,
+            })),
+          },
+        );
+      });
+
+      this.logger.success(
+        `Synced ${towers.length} cell towers to Neo4j and linked to all investigations`,
+        'InvestigationsService',
+      );
+
+      return {
+        towerCount: towers.length,
+        message: `Successfully synced ${towers.length} towers and linked to all investigations`,
+      };
+    } catch (error) {
+      this.logger.error(
+        `Failed to sync towers: ${error}`,
+        undefined,
+        'InvestigationsService',
+      );
+      throw error;
+    }
   }
 }

@@ -10,50 +10,42 @@ export class VictimMappingController {
   ) {}
 
   /**
-   * GET /victim-mapping/:investigationId
-   * Returns all caller-victim relationships with risk levels
+   * GET /victim-mapping/:investigationId/victim/:victimPhone/suspects
+   * Returns suspects who called or contacted a specific victim
+   * NOTE: More specific routes must come FIRST to avoid route matching conflicts
    */
-  @Get(':investigationId')
-  async getVictimMapping(@Param('investigationId') investigationId: string) {
+  @Get(':investigationId/victim/:victimPhone/suspects')
+  async getSuspectsForVictim(
+    @Param('investigationId') investigationId: string,
+    @Param('victimPhone') victimPhone: string,
+  ) {
     this.logger.log(
-      `Fetching victim mapping for investigation: ${investigationId}`,
+      `Finding suspects for victim ${victimPhone} in investigation: ${investigationId}`,
       'VictimMappingController',
     );
 
     try {
-      const relationships =
-        await this.victimMappingService.getVictimMappingGraph(investigationId);
-      const convergencePoints =
-        await this.victimMappingService.findConvergencePoints(investigationId);
-
-      const criticalCount = relationships.filter(
-        (r) => r.risk_level === 'CRITICAL',
-      ).length;
-      const highRiskCount = relationships.filter(
-        (r) => r.risk_level === 'HIGH',
-      ).length;
+      const suspects = await this.victimMappingService.getSuspectsForVictim(
+        investigationId,
+        victimPhone,
+      );
 
       this.logger.success(
-        `Victim mapping complete: ${relationships.length} relationships, ${criticalCount} critical, ${highRiskCount} high-risk`,
+        `Found ${suspects.length} suspects connected to victim ${victimPhone}`,
         'VictimMappingController',
       );
 
       return {
         success: true,
         data: {
-          relationships,
-          convergencePoints,
-          summary: {
-            totalRelationships: relationships.length,
-            convergenceZones: convergencePoints.length,
-            criticalCases: criticalCount,
-            highRiskCases: highRiskCount,
-          },
+          victimPhone,
+          suspects,
+          count: suspects.length,
         },
       };
     } catch (error) {
       this.logger.failed(
-        `Failed to fetch victim mapping for ${investigationId}`,
+        `Failed to find suspects for victim ${victimPhone}`,
         'VictimMappingController',
       );
       throw error;
@@ -197,6 +189,57 @@ export class VictimMappingController {
     } catch (error) {
       this.logger.failed(
         `Failed to find convergence zones for ${investigationId}`,
+        'VictimMappingController',
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * GET /victim-mapping/:investigationId
+   * Returns all caller-victim relationships with risk levels
+   */
+  @Get(':investigationId')
+  async getVictimMapping(@Param('investigationId') investigationId: string) {
+    this.logger.log(
+      `Fetching victim mapping for investigation: ${investigationId}`,
+      'VictimMappingController',
+    );
+
+    try {
+      const relationships =
+        await this.victimMappingService.getVictimMappingGraph(investigationId);
+      const convergencePoints =
+        await this.victimMappingService.findConvergencePoints(investigationId);
+
+      const criticalCount = relationships.filter(
+        (r) => r.risk_level === 'CRITICAL',
+      ).length;
+      const highRiskCount = relationships.filter(
+        (r) => r.risk_level === 'HIGH',
+      ).length;
+
+      this.logger.success(
+        `Victim mapping complete: ${relationships.length} relationships, ${criticalCount} critical, ${highRiskCount} high-risk`,
+        'VictimMappingController',
+      );
+
+      return {
+        success: true,
+        data: {
+          relationships,
+          convergencePoints,
+          summary: {
+            totalRelationships: relationships.length,
+            convergenceZones: convergencePoints.length,
+            criticalCases: criticalCount,
+            highRiskCases: highRiskCount,
+          },
+        },
+      };
+    } catch (error) {
+      this.logger.failed(
+        `Failed to fetch victim mapping for ${investigationId}`,
         'VictimMappingController',
       );
       throw error;

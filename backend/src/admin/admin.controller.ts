@@ -4,6 +4,7 @@ import {
   UploadedFile,
   UseInterceptors,
   Body,
+  Param,
   HttpException,
   HttpStatus,
 } from '@nestjs/common';
@@ -144,15 +145,15 @@ export class AdminController {
   }
 
   /**
-   * POST /admin/ingest/suspects
-   * Upload suspects CSV to Neo4j
+   * POST /admin/ingest/suspects/:caseId
+   * Upload suspects CSV to Neo4j linked to specific case
    */
-  @Post('ingest/suspects')
+  @Post('ingest/suspects/:caseId')
   @UseInterceptors(FileInterceptor('file'))
   async ingestSuspects(
+    @Param('caseId') caseId: string,
     @UploadedFile() file: MulterFile,
     @Body('filePath') filePath?: string,
-    @Body('investigationId') investigationId?: string,
   ): Promise<IngestionResult> {
     this.logger.log('Suspects ingestion request received', 'AdminController');
 
@@ -175,7 +176,7 @@ export class AdminController {
 
       const result = await this.suspectIngestion.ingestSuspectsFromFile(
         csvPath,
-        investigationId,
+        caseId, // Use caseId from URL param
       );
 
       if (tempCreated) {
@@ -199,15 +200,15 @@ export class AdminController {
   }
 
   /**
-   * POST /admin/ingest/victims
-   * Upload victims CSV to Neo4j
+   * POST /admin/ingest/victims/:caseId
+   * Upload victims CSV to Neo4j linked to specific case
    */
-  @Post('ingest/victims')
+  @Post('ingest/victims/:caseId')
   @UseInterceptors(FileInterceptor('file'))
   async ingestVictims(
+    @Param('caseId') caseId: string,
     @UploadedFile() file: MulterFile,
     @Body('filePath') filePath?: string,
-    @Body('investigationId') investigationId?: string,
   ): Promise<IngestionResult> {
     this.logger.log('Victims ingestion request received', 'AdminController');
 
@@ -230,7 +231,7 @@ export class AdminController {
 
       const result = await this.suspectIngestion.ingestVictimsFromFile(
         csvPath,
-        investigationId,
+        caseId, // Use caseId from URL param
       );
 
       if (tempCreated) {
@@ -254,15 +255,15 @@ export class AdminController {
   }
 
   /**
-   * POST /admin/ingest/cdr
-   * Upload CDR CSV to Neo4j
+   * POST /admin/ingest/cdr/:caseId
+   * Upload CDR CSV to Neo4j linked to specific case
    */
-  @Post('ingest/cdr')
+  @Post('ingest/cdr/:caseId')
   @UseInterceptors(FileInterceptor('file'))
   async ingestCDR(
+    @Param('caseId') caseId: string,
     @UploadedFile() file: MulterFile,
     @Body('filePath') filePath?: string,
-    @Body('investigationId') investigationId?: string,
   ): Promise<IngestionResult> {
     this.logger.log('CDR ingestion request received', 'AdminController');
 
@@ -285,7 +286,7 @@ export class AdminController {
 
       const result = await this.suspectIngestion.ingestCDRFromFile(
         csvPath,
-        investigationId,
+        caseId, // Use caseId from URL param
       );
 
       if (tempCreated) {
@@ -309,15 +310,15 @@ export class AdminController {
   }
 
   /**
-   * POST /admin/ingest/transactions
-   * Upload transactions CSV to Neo4j
+   * POST /admin/ingest/transactions/:caseId
+   * Upload transactions CSV to Neo4j linked to specific case
    */
-  @Post('ingest/transactions')
+  @Post('ingest/transactions/:caseId')
   @UseInterceptors(FileInterceptor('file'))
   async ingestTransactions(
+    @Param('caseId') caseId: string,
     @UploadedFile() file: MulterFile,
     @Body('filePath') filePath?: string,
-    @Body('investigationId') investigationId?: string,
   ): Promise<IngestionResult> {
     this.logger.log(
       'Transactions ingestion request received',
@@ -343,7 +344,7 @@ export class AdminController {
 
       const result = await this.suspectIngestion.ingestTransactionsFromFile(
         csvPath,
-        investigationId,
+        caseId, // Use caseId from URL param
       );
 
       if (tempCreated) {

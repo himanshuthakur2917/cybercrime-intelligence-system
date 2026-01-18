@@ -1,4 +1,4 @@
-import { Controller, Get, Param } from '@nestjs/common';
+import { Controller, Get, Param, Query, Body, Post } from '@nestjs/common';
 import { GeolocationService } from './geolocation.service';
 import { LoggerService } from 'src/common/logger/logger.service';
 
@@ -166,6 +166,144 @@ export class GeolocationController {
     } catch (error) {
       this.logger.failed(
         `Failed to fetch cell towers for ${investigationId}`,
+        'GeolocationController',
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * GET /geolocation/:investigationId/victim-caller-map/:victimId
+   * Returns all callers who contacted a specific victim with tower coordinates
+   */
+  @Get(':investigationId/victim-caller-map/:victimId')
+  async getVictimCallerMap(
+    @Param('investigationId') investigationId: string,
+    @Param('victimId') victimId: string,
+    @Query('rangeKm') rangeKm?: number,
+  ) {
+    this.logger.log(
+      `Fetching victim-caller map for victim ${victimId} in investigation: ${investigationId}`,
+      'GeolocationController',
+    );
+
+    try {
+      const connections = await this.geolocationService.getVictimCallerMap(
+        investigationId,
+        victimId,
+        rangeKm ? parseFloat(rangeKm.toString()) : undefined,
+      );
+
+      this.logger.success(
+        `Retrieved ${connections.length} caller connections for victim ${victimId}`,
+        'GeolocationController',
+      );
+
+      return {
+        success: true,
+        data: {
+          connections,
+          totalConnections: connections.length,
+          rangeKm: rangeKm || 'all',
+        },
+      };
+    } catch (error) {
+      this.logger.failed(
+        `Failed to fetch victim-caller map for ${victimId}`,
+        'GeolocationController',
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * GET /geolocation/:investigationId/triangulate/:suspectId
+   * Triangulates suspect location using PostGIS and multiple tower pings
+   */
+  @Get(':investigationId/triangulate/:suspectId')
+  async triangulateLocation(
+    @Param('investigationId') investigationId: string,
+    @Param('suspectId') suspectId: string,
+  ) {
+    this.logger.log(
+      `Triangulating location for suspect ${suspectId} in investigation: ${investigationId}`,
+      'GeolocationController',
+    );
+
+    try {
+      const result = await this.geolocationService.triangulateLocation(
+        investigationId,
+        suspectId,
+      );
+
+      if (result) {
+        this.logger.success(
+          `Triangulated location for ${suspectId} with ${result.confidence} confidence (${result.towerCount} towers)`,
+          'GeolocationController',
+        );
+      } else {
+        this.logger.warn(
+          `Unable to triangulate location for suspect ${suspectId} - insufficient data`,
+          'GeolocationController',
+        );
+      }
+
+      return {
+        success: true,
+        data: {
+          triangulation: result,
+        },
+      };
+    } catch (error) {
+      this.logger.failed(
+        `Triangulation failed for suspect ${suspectId}`,
+        'GeolocationController',
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * GET /geolocation/:investigationId/markers-in-range
+   * Returns map markers filtered by distance from a center point
+   */
+  @Get(':investigationId/markers-in-range')
+  async getMarkersInRange(
+    @Param('investigationId') investigationId: string,
+    @Query('centerLat') centerLat: number,
+    @Query('centerLon') centerLon: number,
+    @Query('rangeKm') rangeKm: number,
+  ) {
+    this.logger.log(
+      `Fetching markers within ${rangeKm}km of (${centerLat}, ${centerLon})`,
+      'GeolocationController',
+    );
+
+    try {
+      const markers = await this.geolocationService.getMarkersInRange(
+        investigationId,
+        parseFloat(centerLat.toString()),
+        parseFloat(centerLon.toString()),
+        parseFloat(rangeKm.toString()),
+      );
+
+      this.logger.success(
+        `Retrieved ${markers.length} markers within ${rangeKm}km range`,
+        'GeolocationController',
+      );
+
+      return {
+        success: true,
+        data: {
+          markers,
+          totalMarkers: markers.length,
+          center: { lat: centerLat, lon: centerLon },
+          rangeKm,
+        },
+      };
+    } catch (error) {
+      this.logger.failed(
+        `Failed to fetch markers in range`,
         'GeolocationController',
       );
       throw error;

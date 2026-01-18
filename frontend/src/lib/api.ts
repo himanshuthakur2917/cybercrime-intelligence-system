@@ -27,7 +27,7 @@ axiosInstance.interceptors.response.use(
   (error) => {
     console.error("API Error:", error.response?.data || error.message);
     return Promise.reject(error);
-  }
+  },
 );
 
 // Helper to extract data property directly
@@ -40,40 +40,88 @@ const getData = async <T>(promise: Promise<AxiosResponse<T>>): Promise<T> => {
 export const api = {
   upload: (investigationId: string, data: unknown) =>
     getData(
-      axiosInstance.post(`/investigations/${investigationId}/upload`, data)
+      axiosInstance.post(`/investigations/${investigationId}/upload`, data),
     ),
 
   getMapData: (investigationId: string) =>
     getData<MapDataResponse>(
-      axiosInstance.get(`/geolocation/${investigationId}/map-data`)
+      axiosInstance.get(`/geolocation/${investigationId}/map-data`),
     ),
 
   getPatterns: (investigationId: string) =>
     getData<PatternResponse>(
-      axiosInstance.get(`/victim-mapping/${investigationId}/patterns`)
+      axiosInstance.get(`/victim-mapping/${investigationId}/patterns`),
     ),
 
   getVictimMapping: (investigationId: string) =>
     getData<VictimMappingResponse>(
-      axiosInstance.get(`/victim-mapping/${investigationId}`)
+      axiosInstance.get(`/victim-mapping/${investigationId}`),
     ),
 
   getTrajectory: (investigationId: string, suspectId: string) =>
     getData<TrajectoryResponse>(
       axiosInstance.get(
-        `/victim-mapping/${investigationId}/trajectory/${suspectId}`
-      )
+        `/victim-mapping/${investigationId}/trajectory/${suspectId}`,
+      ),
     ),
 
   getPrediction: (investigationId: string, suspectId: string) =>
     getData<PredictionResponse>(
       axiosInstance.get(
-        `/geolocation/${investigationId}/trajectory/${suspectId}`
-      )
+        `/geolocation/${investigationId}/trajectory/${suspectId}`,
+      ),
     ),
 
   getInvestigations: () =>
     getData<{ id: string; name: string; status: string }[]>(
-      axiosInstance.post("/investigations/list")
+      axiosInstance.post("/investigations/list"),
+    ),
+
+  // Victim-Caller Mapping (Hybrid Architecture)
+  getVictimCallerMap: (
+    investigationId: string,
+    victimId: string,
+    rangeKm?: number,
+  ) =>
+    getData(
+      axiosInstance.get(
+        `/geolocation/${investigationId}/victim-caller-map/${victimId}`,
+        { params: rangeKm ? { rangeKm } : {} },
+      ),
+    ),
+
+  // Triangulate Suspect Location
+  triangulateSuspectLocation: (investigationId: string, suspectId: string) =>
+    getData(
+      axiosInstance.get(
+        `/geolocation/${investigationId}/triangulate/${suspectId}`,
+      ),
+    ),
+
+  // Get suspects who called or contacted a specific victim
+  getSuspectsForVictim: (investigationId: string, victimPhone: string) =>
+    getData(
+      axiosInstance.get(
+        `/victim-mapping/${investigationId}/victim/${victimPhone}/suspects`,
+      ),
+    ),
+
+  // Get Markers in Range
+  getMarkersInRange: (
+    investigationId: string,
+    centerLat: number,
+    centerLon: number,
+    rangeKm: number,
+  ) =>
+    getData(
+      axiosInstance.get(`/geolocation/${investigationId}/markers-in-range`, {
+        params: { centerLat, centerLon, rangeKm },
+      }),
+    ),
+
+  // Sync cell towers from Supabase to Neo4j
+  syncTowers: (investigationId: string) =>
+    getData(
+      axiosInstance.post(`/investigations/${investigationId}/sync-towers`),
     ),
 };

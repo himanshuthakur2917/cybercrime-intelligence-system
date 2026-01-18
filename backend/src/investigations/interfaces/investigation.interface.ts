@@ -31,6 +31,7 @@ export interface Suspects {
   team_size?: number;
   operational_capability?: string;
   arrest_warrant_issued?: string;
+  trajectory_history?: string;
 }
 
 // Call record matching calls_enhanced.csv

@@ -66,27 +66,27 @@ export const sidebarData = {
   navMain: [
     {
       title: "Network View",
-      url: "/dashboard",
+      url: "", // Will be set dynamically
       icon: IconChartAreaLine,
     },
     {
       title: "Geolocation Map",
-      url: "/dashboard/map",
+      url: "/map",
       icon: IconMapPin,
     },
     {
       title: "Pattern Analysis",
-      url: "/dashboard/patterns",
+      url: "/patterns",
       icon: IconTopologyRing,
     },
     {
       title: "Suspect Tracking",
-      url: "/dashboard/tracking",
+      url: "/tracking",
       icon: IconTarget,
     },
     {
       title: "Data Upload",
-      url: "/dashboard/upload",
+      url: "/upload",
       icon: IconFileDescription,
     },
   ],
@@ -100,7 +100,31 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     if (pathname.includes("/admin")) {
       setNavItems(sidebarData.adminNav);
     } else {
-      setNavItems(sidebarData.navMain);
+      // Extract case ID from pathname if it exists
+      const dashboardMatch = pathname.match(/^\/dashboard\/([^\/]+)/);
+      const caseId = dashboardMatch ? dashboardMatch[1] : null;
+
+      // If we have a case ID, prepend it to all dashboard routes
+      if (caseId) {
+        const updatedNavMain = sidebarData.navMain.map((item) => ({
+          ...item,
+          url:
+            item.url === ""
+              ? `/dashboard/${caseId}`
+              : `/dashboard/${caseId}${item.url}`,
+        }));
+        setNavItems(updatedNavMain);
+      } else {
+        // No case ID - user is on case selection page
+        // Show only "Select Case" or disable navigation
+        setNavItems([
+          {
+            title: "Select a Case",
+            url: "/dashboard",
+            icon: IconFileDescription,
+          },
+        ]);
+      }
     }
   }, [pathname]);
 

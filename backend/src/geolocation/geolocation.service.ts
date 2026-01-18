@@ -1,7 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { Neo4jService } from 'src/neo4j/neo4j.service';
 import { LoggerService } from 'src/common/logger/logger.service';
+import { SupabaseService } from 'src/supabase/supabase.service';
 import { Integer } from 'neo4j-driver';
+import { VictimCallerConnection, TriangulationResult } from './geolocation.dto';
 
 /**
  * Helper to recursively convert all Neo4j Integers in an object to regular JS numbers
@@ -81,6 +83,7 @@ export interface CellTower {
 export class GeolocationService {
   constructor(
     private readonly neo4jService: Neo4jService,
+    private readonly supabaseService: SupabaseService,
     private readonly logger: LoggerService,
   ) {}
 
@@ -157,36 +160,29 @@ export class GeolocationService {
     suspectId: string,
   ): Promise<LocationPrediction | null> {
     this.logger.log(
-      `Predicting location for suspect ${suspectId}`,
+      `Predicting location for suspect ${suspectId} (Hybrid)`,
       'GeolocationService',
     );
 
     const query = `
       MATCH (i:Investigation {id: $invId})-[:CONTAINS]->(s:Suspect {id: $suspectId})
       
-      // Get historical CDR positions
+      // Get historical CDR tower IDs
       OPTIONAL MATCH (s)-[cdr:CDR_CALL]->()
-      OPTIONAL MATCH (i)-[:HAS_TOWER]->(tower:CellTower {towerId: cdr.callerTowerId})
       
-      // Get real-time event positions
+      // Get real-time event tower IDs
       OPTIONAL MATCH (s)-[:PINGED]->(e:Event)
       
       WITH s, 
            CASE 
              WHEN e IS NOT NULL THEN {
-               lat: e.location.latitude,
-               lon: e.location.longitude,
                time: toString(e.timestamp),
                tower_id: e.cell_tower_id,
-               location: 'Real-time Event',
                type: 'EVENT'
              }
-             WHEN cdr IS NOT NULL AND tower IS NOT NULL THEN {
-               lat: tower.latitude,
-               lon: tower.longitude,
+             WHEN cdr IS NOT NULL THEN {
                time: cdr.callStartTime,
                tower_id: cdr.callerTowerId,
-               location: tower.towerLocation,
                type: 'CDR'
              }
              ELSE NULL
@@ -204,20 +200,8 @@ export class GeolocationService {
         suspect_id: s.id,
         suspect_name: s.name,
         suspect_phone: s.phone,
-        last_known_position: {
-          latitude: recent_positions[0].lat,
-          longitude: recent_positions[0].lon,
-          timestamp: recent_positions[0].time,
-          tower_id: recent_positions[0].tower_id
-        },
-        movement_pattern: [pos IN recent_positions WHERE pos.location IS NOT NULL | pos.location],
-        predicted_location: recent_positions[0].location,
-        confidence_level: CASE
-          WHEN size(recent_positions) >= 8 THEN 'HIGH'
-          WHEN size(recent_positions) >= 4 THEN 'MEDIUM'
-          ELSE 'LOW'
-        END
-      } AS prediction
+        recent_positions: recent_positions
+      } AS result
     `;
 
     try {
@@ -226,16 +210,53 @@ export class GeolocationService {
         suspectId,
       });
 
-      if (records.length === 0) {
+      if (
+        records.length === 0 ||
+        !records[0].get('result').recent_positions.length
+      ) {
         this.logger.warn(
           `No location data for suspect ${suspectId}`,
           'GeolocationService',
         );
         return null;
       }
-      const prediction = convertNeo4jIntegers(
-        records[0].get('prediction'),
-      ) as LocationPrediction;
+
+      const result = convertNeo4jIntegers(records[0].get('result'));
+      const recentPositions = result.recent_positions;
+
+      // Fetch tower coordinates
+      const towerIds = [
+        ...new Set(recentPositions.map((p) => p.tower_id).filter(Boolean)),
+      ] as string[];
+      const towers = await this.supabaseService.getTowersByIds(towerIds);
+      const towerMap = new Map(towers.map((t) => [t.cell_id, t]));
+
+      const lastPos = recentPositions[0];
+      const towerData = towerMap.get(lastPos.tower_id);
+
+      const prediction: LocationPrediction = {
+        suspect_id: result.suspect_id,
+        suspect_name: result.suspect_name,
+        suspect_phone: result.suspect_phone,
+        last_known_position: {
+          latitude: towerData?.lat || 0,
+          longitude: towerData?.lon || 0,
+          timestamp: lastPos.time,
+          tower_id: lastPos.tower_id || 'GPS',
+        },
+        movement_pattern: recentPositions.map((p) => {
+          const t = towerMap.get(p.tower_id);
+          return t ? `${t.name} (${p.time})` : `Unknown Tower ${p.tower_id}`;
+        }),
+        predicted_location: towerData?.name || 'Unknown',
+        confidence_level:
+          recentPositions.length >= 8
+            ? 'HIGH'
+            : recentPositions.length >= 4
+              ? 'MEDIUM'
+              : 'LOW',
+      };
+
       this.logger.success(
         `Location predicted with ${prediction.confidence_level} confidence`,
         'GeolocationService',
@@ -252,45 +273,181 @@ export class GeolocationService {
   }
 
   /**
-   * Get all cell towers for the investigation (from CellTower nodes)
+   * Get all cell towers from Supabase (infrastructure data)
+   * Cell towers are stored in Supabase PostGIS, not Neo4j
    */
   async getCellTowers(investigationId: string): Promise<CellTower[]> {
     this.logger.log(
-      `Fetching cell towers for ${investigationId}`,
+      `Fetching cell towers from Supabase for ${investigationId}`,
       'GeolocationService',
     );
 
+    try {
+      // Fetch all cell towers from Supabase
+      const towers = await this.supabaseService.getAllCellTowers();
+
+      this.logger.success(
+        `Retrieved ${towers.length} cell towers from Supabase`,
+        'GeolocationService',
+      );
+
+      // Transform Supabase tower format to CellTower interface
+      return towers.map((t) => ({
+        tower_id: t.cell_id,
+        location: t.name || t.cell_id,
+        latitude: t.lat,
+        longitude: t.lon,
+        city: '',
+        state: '',
+        provider: '',
+        high_risk_calls: 0,
+        investigation_priority: 'LOW',
+      }));
+    } catch (error) {
+      this.logger.error(
+        `Failed to fetch towers from Supabase: ${error}`,
+        undefined,
+        'GeolocationService',
+      );
+      // Return empty array instead of throwing to prevent breaking the map
+      return [];
+    }
+  }
+
+  /**
+   * Get all geolocation markers for map display (hybrid Neo4j + Supabase)
+   * Uses cell tower triangulation to estimate caller location
+   */
+  async getMapMarkers(investigationId: string): Promise<MapMarker[]> {
+    this.logger.log(
+      `Fetching map markers for ${investigationId}`,
+      'GeolocationService',
+    );
+
+    // Step 1: Query Neo4j for CDR calls with tower IDs
     const query = `
-      MATCH (i:Investigation {id: $invId})-[:HAS_TOWER]->(t:CellTower)
+      MATCH (i:Investigation {id: $invId})-[:CONTAINS]->(caller:Suspect)
+            -[cdr:CDR_CALL]->(receiver:Suspect)
+      WHERE (i)-[:CONTAINS]->(receiver)
       
       RETURN {
-        tower_id: t.towerId,
-        location: t.towerLocation,
-        latitude: t.latitude,
-        longitude: t.longitude,
-        city: t.city,
-        state: t.state,
-        provider: t.provider,
-        high_risk_calls: t.highRiskCalls,
-        investigation_priority: t.investigationPriority
-      } AS tower
-      
-      ORDER BY t.highRiskCalls DESC
+        call_id: cdr.callId,
+        caller: {
+          id: caller.id,
+          name: caller.name,
+          phone: caller.phone
+        },
+        receiver: {
+          id: receiver.id,
+          name: receiver.name,
+          phone: receiver.phone
+        },
+        caller_tower_id: cdr.callerTowerId,
+        receiver_tower_id: cdr.receiverTowerId,
+        call_time: cdr.callStartTime,
+        duration: cdr.durationSec,
+        proximity: cdr.proximityPattern
+      } AS call
+      ORDER BY cdr.callStartTime DESC
     `;
 
     try {
       const records = await this.neo4jService.readCypher(query, {
         invId: investigationId,
       });
-      const towers = records.map((r) => r.get('tower') as CellTower);
-      this.logger.success(
-        `Retrieved ${towers.length} cell towers`,
+
+      const calls = records.map((r) => convertNeo4jIntegers(r.get('call')));
+
+      this.logger.log(
+        `Found ${calls.length} CDR calls from Neo4j for investigation ${investigationId}`,
         'GeolocationService',
       );
-      return towers;
+
+      if (calls.length === 0) {
+        return [];
+      }
+
+      // Step 2: Extract unique tower IDs
+      const towerIds = [
+        ...new Set(
+          calls
+            .flatMap((c) => [c.caller_tower_id, c.receiver_tower_id])
+            .filter(Boolean),
+        ),
+      ];
+
+      this.logger.log(
+        `Unique tower IDs found in CDR: ${towerIds.join(', ')}`,
+        'GeolocationService',
+      );
+
+      // Step 3: Fetch tower coordinates from Supabase
+      const towers = await this.supabaseService.getTowersByIds(towerIds);
+      const towerMap = new Map(towers.map((t) => [t.cell_id, t]));
+
+      this.logger.log(
+        `Successfully matched ${towerMap.size} out of ${towerIds.length} unique towers from Supabase`,
+        'GeolocationService',
+      );
+
+      if (towerMap.size === 0) {
+        this.logger.warn(
+          `WARNING: None of the ${towerIds.length} tower IDs from Neo4j were found in Supabase cell_towers_2 table!`,
+          'GeolocationService',
+        );
+      }
+
+      // Step 4: Build map markers with tower locations (approximation)
+      const markers: MapMarker[] = calls
+        .map((call) => {
+          const callerTower = towerMap.get(call.caller_tower_id);
+          const receiverTower = towerMap.get(call.receiver_tower_id);
+
+          if (!callerTower) {
+            // Log missing tower once per ID to avoid spam
+            return null; // Skip if tower not found
+          }
+
+          return {
+            call_id: call.call_id,
+            caller: call.caller,
+            receiver: call.receiver,
+            caller_position: {
+              lat: callerTower.lat,
+              lon: callerTower.lon,
+              tower_id: callerTower.cell_id,
+            },
+            receiver_position: receiverTower
+              ? {
+                  lat: receiverTower.lat,
+                  lon: receiverTower.lon,
+                  tower_id: receiverTower.cell_id,
+                }
+              : null,
+            tower: {
+              id: callerTower.cell_id,
+              location: callerTower.name || 'Unknown',
+              lat: callerTower.lat,
+              lon: callerTower.lon,
+            },
+            proximity_pattern: call.proximity || 'UNKNOWN',
+            distance_km: 0, // Can calculate if needed
+            call_duration: call.duration || 0,
+            call_time: call.call_time,
+            risk_level: call.proximity === 'NEAR' ? 'HIGH' : 'MEDIUM',
+          } as MapMarker;
+        })
+        .filter((m) => m !== null) as MapMarker[];
+
+      this.logger.success(
+        `Finalized ${markers.length} markers for map display out of ${calls.length} possible calls`,
+        'GeolocationService',
+      );
+
+      return markers;
     } catch (error) {
       this.logger.error(
-        `Failed to fetch towers: ${error}`,
+        `Failed to fetch markers: ${error}`,
         undefined,
         'GeolocationService',
       );
@@ -299,97 +456,315 @@ export class GeolocationService {
   }
 
   /**
-   * Get all geolocation markers for map display (from CDR_CALL relationships)
+   * Get victim-caller map with hybrid Neo4j + Supabase
+   * Neo4j provides relationships, Supabase provides tower coordinates
    */
-  async getMapMarkers(investigationId: string): Promise<MapMarker[]> {
+  async getVictimCallerMap(
+    investigationId: string,
+    victimId: string,
+    rangeKm?: number,
+  ): Promise<VictimCallerConnection[]> {
     this.logger.log(
-      `Fetching map markers for ${investigationId}`,
+      `Getting victim-caller map for ${victimId}`,
       'GeolocationService',
     );
 
+    // Step 1: Query Neo4j for CDR relationships
     const query = `
       MATCH (i:Investigation {id: $invId})-[:CONTAINS]->(caller:Suspect)
-      
-      // Part A: CDR Calls
-      OPTIONAL MATCH (caller)-[cdr:CDR_CALL]->(receiver:Suspect)
-      WHERE (i)-[:CONTAINS]->(receiver)
-      OPTIONAL MATCH (i)-[:HAS_TOWER]->(callerTower:CellTower {towerId: cdr.callerTowerId})
-      OPTIONAL MATCH (i)-[:HAS_TOWER]->(receiverTower:CellTower {towerId: cdr.receiverTowerId})
-      
-      // Part B: Real-time Events
-      OPTIONAL MATCH (caller)-[:PINGED]->(event:Event)
-      
-      WITH i, caller, cdr, receiver, callerTower, receiverTower, event
-      
-      // Combine results
-      WITH caller, 
-           CASE 
-             WHEN event IS NOT NULL THEN {
-               call_id: 'event-' + toString(id(event)),
-               type: 'EVENT',
-               lat: event.location.latitude,
-               lon: event.location.longitude,
-               time: toString(event.timestamp),
-               risk: CASE WHEN 'TRESPASSED' IN labels(event) THEN 'CRITICAL' ELSE 'MEDIUM' END,
-               info: 'Real-time Signal'
-             }
-             WHEN cdr IS NOT NULL AND callerTower IS NOT NULL THEN {
-               call_id: cdr.callId,
-               type: 'CDR',
-               lat: callerTower.latitude,
-               lon: callerTower.longitude,
-               time: cdr.callStartTime,
-               risk: CASE WHEN cdr.proximityPattern = 'NEAR' THEN 'HIGH' ELSE 'LOW' END,
-               info: 'Tower: ' + callerTower.towerLocation,
-               receiver: { id: receiver.id, name: receiver.name, phone: receiver.phone },
-               receiver_pos: { lat: COALESCE(receiverTower.latitude, 0), lon: COALESCE(receiverTower.longitude, 0) }
-             }
-             ELSE NULL
-           END AS m
-      
-      WHERE m IS NOT NULL
+            -[cdr:CDR_CALL]->(victim:Suspect {id: $victimId})
       
       RETURN {
-        call_id: m.call_id,
+        call_id: cdr.callId,
         caller: {
           id: caller.id,
           name: caller.name,
           phone: caller.phone
         },
-        receiver: m.receiver,
-        caller_position: {
-          lat: m.lat,
-          lon: m.lon,
-          tower_id: m.type
+        victim: {
+          id: victim.id,
+          name: victim.name,
+          phone: victim.phone
         },
-        receiver_position: m.receiver_pos,
-        tower: {
-          id: m.type,
-          location: m.info,
-          lat: m.lat,
-          lon: m.lon
-        },
-        proximity_pattern: m.type,
-        distance_km: 0,
-        call_duration: 0,
-        call_time: m.time,
-        risk_level: m.risk
-      } AS marker
+        caller_tower_id: cdr.callerTowerId,
+        receiver_tower_id: cdr.receiverTowerId,
+        call_time: cdr.callStartTime,
+        duration: cdr.durationSec,
+        direction: cdr.direction
+      } AS call
+      ORDER BY cdr.callStartTime DESC
     `;
 
     try {
       const records = await this.neo4jService.readCypher(query, {
         invId: investigationId,
+        victimId,
       });
-      const markers = records.map((r) => r.get('marker') as MapMarker);
+
+      const calls = records.map((r) => convertNeo4jIntegers(r.get('call')));
+
+      // Step 2: Extract unique tower IDs
+      const towerIds = [
+        ...new Set(
+          calls
+            .flatMap((c) => [c.caller_tower_id, c.receiver_tower_id])
+            .filter(Boolean),
+        ),
+      ];
+
+      // Step 3: Fetch tower coordinates from Supabase
+      const towers = await this.supabaseService.getTowersByIds(towerIds);
+      const towerMap = new Map(towers.map((t) => [t.cell_id, t]));
+
+      // Step 4: Enrich calls with tower coordinates
+      const enrichedCalls: VictimCallerConnection[] = calls.map((call) => {
+        const callerTower = towerMap.get(call.caller_tower_id);
+        const receiverTower = towerMap.get(call.receiver_tower_id);
+
+        return {
+          callId: call.call_id,
+          caller: call.caller,
+          victim: call.victim,
+          callerPosition: {
+            lat: callerTower?.lat || 0,
+            lon: callerTower?.lon || 0,
+            towerId: call.caller_tower_id,
+            towerName: callerTower?.name,
+          },
+          victimPosition: {
+            lat: receiverTower?.lat || 0,
+            lon: receiverTower?.lon || 0,
+            towerId: call.receiver_tower_id,
+            towerName: receiverTower?.name,
+          },
+          distance_km: 0,
+          callTime: call.call_time,
+          duration: call.duration || 0,
+          direction: call.direction || 'INCOMING',
+          riskLevel: 'MEDIUM',
+        };
+      });
+
+      // Step 5: Optional range filtering
+      if (rangeKm && enrichedCalls.length > 0) {
+        const victimPos = enrichedCalls[0].victimPosition;
+
+        const filtered = await this.supabaseService.filterPointsInRange(
+          victimPos.lat,
+          victimPos.lon,
+          rangeKm,
+          enrichedCalls.map((c) => ({
+            ...c,
+            lat: c.callerPosition.lat,
+            lon: c.callerPosition.lon,
+          })),
+        );
+
+        this.logger.success(
+          `Filtered to ${filtered.length} calls within ${rangeKm}km`,
+          'GeolocationService',
+        );
+
+        return filtered as unknown as VictimCallerConnection[];
+      }
+
       this.logger.success(
-        `Retrieved ${markers.length} map markers`,
+        `Retrieved ${enrichedCalls.length} victim-caller connections`,
         'GeolocationService',
       );
-      return markers;
+
+      return enrichedCalls;
     } catch (error) {
       this.logger.error(
-        `Failed to fetch markers: ${error}`,
+        `Failed to get victim-caller map: ${error}`,
+        undefined,
+        'GeolocationService',
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Triangulate suspect location using PostGIS
+   * NOW WITH PHANTOM TOWER DETECTION
+   */
+  async triangulateLocation(
+    investigationId: string,
+    suspectId: string,
+  ): Promise<TriangulationResult | null> {
+    this.logger.log(
+      `Triangulating location for suspect ${suspectId}`,
+      'GeolocationService',
+    );
+
+    const query = `
+      MATCH (i:Investigation {id: $invId})-[:CONTAINS]->(suspect:Suspect {id: $suspectId})
+      OPTIONAL MATCH (suspect)-[cdr:CDR_CALL]->()
+      
+      WHERE cdr.callerTowerId IS NOT NULL
+      
+      WITH suspect, collect(DISTINCT cdr.callerTowerId) AS tower_ids
+      
+      RETURN {
+        suspect_id: suspect.id,
+        suspect_name: suspect.name,
+        tower_ids: tower_ids
+      } AS result
+    `;
+
+    try {
+      const records = await this.neo4jService.readCypher(query, {
+        invId: investigationId,
+        suspectId,
+      });
+
+      if (records.length === 0) {
+        return null;
+      }
+
+      const result = convertNeo4jIntegers(records[0].get('result'));
+      const allTowerIds = result.tower_ids || [];
+
+      if (allTowerIds.length === 0) {
+        return null;
+      }
+
+      this.logger.log(
+        `[TRIANGULATION DEBUG] Suspect ${suspectId}: Found ${allTowerIds.length} towers from CDR records`,
+        'GeolocationService',
+      );
+      this.logger.log(
+        `[TRIANGULATION DEBUG] Tower IDs from Neo4j: ${allTowerIds.join(', ')}`,
+        'GeolocationService',
+      );
+
+      // ✅ VALIDATE: Check which towers actually exist in Supabase
+      const supabaseTowers =
+        await this.supabaseService.getTowersByIds(allTowerIds);
+      const validTowerIds = supabaseTowers.map((t) => t.cell_id);
+      const phantomTowerIds = allTowerIds.filter(
+        (id) => !validTowerIds.includes(id),
+      );
+
+      this.logger.log(
+        `[TRIANGULATION DEBUG] Towers in Supabase: ${validTowerIds.length} / ${allTowerIds.length}`,
+        'GeolocationService',
+      );
+      this.logger.log(
+        `[TRIANGULATION DEBUG] ✅ Valid towers: ${validTowerIds.join(', ')}`,
+        'GeolocationService',
+      );
+
+      if (phantomTowerIds.length > 0) {
+        this.logger.warn(
+          `[TRIANGULATION DEBUG] ❌ PHANTOM TOWERS (missing from Supabase): ${phantomTowerIds.join(', ')}`,
+          'GeolocationService',
+        );
+      }
+
+      // ⚠️ CRITICAL: Use only valid towers for triangulation
+      if (validTowerIds.length === 0) {
+        this.logger.error(
+          `[TRIANGULATION DEBUG] ❌ NO VALID TOWERS - All ${allTowerIds.length} towers are phantoms!`,
+          'GeolocationService',
+        );
+        return null;
+      }
+
+      this.logger.log(
+        `[TRIANGULATION DEBUG] Using ${validTowerIds.length} valid towers (excluding ${phantomTowerIds.length} phantoms)`,
+        'GeolocationService',
+      );
+
+      // Log tower coordinates for debugging
+      supabaseTowers.forEach((tower) => {
+        this.logger.log(
+          `[TRIANGULATION DEBUG] Tower ${tower.cell_id}: (${tower.lat}, ${tower.lon})`,
+          'GeolocationService',
+        );
+      });
+
+      const triangulated =
+        await this.supabaseService.triangulatePosition(validTowerIds);
+
+      if (!triangulated) {
+        this.logger.error(
+          `[TRIANGULATION DEBUG] Triangulation failed (no result from RPC)`,
+          'GeolocationService',
+        );
+        return null;
+      }
+
+      this.logger.log(
+        `[TRIANGULATION DEBUG] Triangulation result: (${triangulated.lat}, ${triangulated.lon}), accuracy: ${triangulated.accuracy_m}m`,
+        'GeolocationService',
+      );
+
+      let confidence: 'HIGH' | 'MEDIUM' | 'LOW' = 'LOW';
+      if (triangulated.tower_count >= 3) {
+        confidence = 'HIGH';
+      } else if (triangulated.tower_count === 2) {
+        confidence = 'MEDIUM';
+      }
+
+      const triangulationResult: TriangulationResult = {
+        suspectId: result.suspect_id,
+        suspectName: result.suspect_name,
+        estimatedLocation: {
+          lat: triangulated.lat,
+          lon: triangulated.lon,
+        },
+        accuracyMeters: triangulated.accuracy_m,
+        towerCount: triangulated.tower_count,
+        towersUsed: validTowerIds,
+        phantomTowers: phantomTowerIds, // 🆕 Report phantom towers
+        confidence,
+        timestamp: new Date(),
+      };
+
+      this.logger.success(
+        `Triangulated location with ${confidence} confidence (${validTowerIds.length} valid towers)`,
+        'GeolocationService',
+      );
+
+      return triangulationResult;
+    } catch (error) {
+      this.logger.error(
+        `Failed to triangulate location: ${error}`,
+        undefined,
+        'GeolocationService',
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Get map markers filtered by range
+   */
+  async getMarkersInRange(
+    investigationId: string,
+    centerLat: number,
+    centerLon: number,
+    rangeKm: number,
+  ): Promise<MapMarker[]> {
+    try {
+      const allMarkers = await this.getMapMarkers(investigationId);
+
+      const filtered = await this.supabaseService.filterPointsInRange(
+        centerLat,
+        centerLon,
+        rangeKm,
+        allMarkers.map((m) => ({
+          ...m,
+          lat: m.caller_position.lat,
+          lon: m.caller_position.lon,
+        })),
+      );
+
+      return filtered as unknown as MapMarker[];
+    } catch (error) {
+      this.logger.error(
+        `Failed to filter markers by range: ${error}`,
         undefined,
         'GeolocationService',
       );

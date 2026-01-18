@@ -16,9 +16,9 @@ import {
   IconAlertCircle,
   IconCheck,
 } from "@tabler/icons-react";
+import { useAuth } from "@/hooks/use-auth";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-const ADMIN_USER_ID = "74eb9bcc-a4fd-49b9-8f5d-b5d8e9a18e67";
 
 interface UploadSuspectsDialogProps {
   open: boolean;
@@ -38,6 +38,7 @@ export default function UploadSuspectsDialog({
   onOpenChange,
   onSuccess,
 }: UploadSuspectsDialogProps) {
+  const { user } = useAuth();
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [result, setResult] = useState<UploadResult | null>(null);
@@ -55,7 +56,7 @@ export default function UploadSuspectsDialog({
     setUploading(true);
     const formData = new FormData();
     formData.append("file", file);
-    formData.append("user_id", ADMIN_USER_ID);
+    formData.append("user_id", user?.id || "");
 
     try {
       const res = await fetch(`${API_URL}/suspects/upload`, {

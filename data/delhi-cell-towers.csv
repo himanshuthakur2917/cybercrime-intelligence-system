@@ -1,0 +1,101 @@
+cell_id,name,lat,lon,range_km,operator,address
+DELHI-CT-001,Connaught Place Tower,28.6304,77.2177,2.5,Airtel,Connaught Place New Delhi
+DELHI-CT-002,Karol Bagh Tower,28.6519,77.1909,2.0,Jio,Karol Bagh New Delhi
+DELHI-CT-003,Rajouri Garden Tower,28.6414,77.1214,2.5,Vodafone,Rajouri Garden New Delhi
+DELHI-CT-004,Dwarka Sector 10 Tower,28.5921,77.0598,3.0,Airtel,Dwarka Sector 10 New Delhi
+DELHI-CT-005,Rohini Sector 7 Tower,28.7428,77.1149,2.5,Jio,Rohini Sector 7 New Delhi
+DELHI-CT-006,Pitampura Tower,28.6942,77.1310,2.0,Vodafone,Pitampura New Delhi
+DELHI-CT-007,Janakpuri Tower,28.6219,77.0854,2.5,Airtel,Janakpuri New Delhi
+DELHI-CT-008,Saket Tower,28.5244,77.2066,2.0,Jio,Saket New Delhi
+DELHI-CT-009,Hauz Khas Tower,28.5494,77.2001,2.5,Vodafone,Hauz Khas New Delhi
+DELHI-CT-010,Nehru Place Tower,28.5494,77.2501,3.0,Airtel,Nehru Place New Delhi
+DELHI-CT-011,Lajpat Nagar Tower,28.5677,77.2435,2.0,Jio,Lajpat Nagar New Delhi
+DELHI-CT-012,South Extension Tower,28.5677,77.2244,2.5,Vodafone,South Extension New Delhi
+DELHI-CT-013,Defence Colony Tower,28.5677,77.2310,2.0,Airtel,Defence Colony New Delhi
+DELHI-CT-014,Greater Kailash Tower,28.5494,77.2435,2.5,Jio,Greater Kailash New Delhi
+DELHI-CT-015,Vasant Kunj Tower,28.5211,77.1586,3.0,Vodafone,Vasant Kunj New Delhi
+DELHI-CT-016,RK Puram Tower,28.5628,77.1836,2.0,Airtel,RK Puram New Delhi
+DELHI-CT-017,Chanakyapuri Tower,28.5959,77.1836,2.5,Jio,Chanakyapuri New Delhi
+DELHI-CT-018,Dhaula Kuan Tower,28.5959,77.1503,2.0,Vodafone,Dhaula Kuan New Delhi
+DELHI-CT-019,Patel Nagar Tower,28.6519,77.1669,2.5,Airtel,Patel Nagar New Delhi
+DELHI-CT-020,Shahdara Tower,28.6836,77.2894,3.0,Jio,Shahdara New Delhi
+DELHI-CT-021,Preet Vihar Tower,28.6428,77.2894,2.0,Vodafone,Preet Vihar New Delhi
+DELHI-CT-022,Laxmi Nagar Tower,28.6353,77.2769,2.5,Airtel,Laxmi Nagar New Delhi
+DELHI-CT-023,Mayur Vihar Tower,28.6078,77.2894,3.0,Jio,Mayur Vihar New Delhi
+DELHI-CT-024,Noida Sector 18 Tower,28.5678,77.3244,2.5,Vodafone,Noida Sector 18 UP
+DELHI-CT-025,Indirapuram Tower,28.6411,77.3744,2.0,Airtel,Indirapuram Ghaziabad
+DELHI-CT-026,Vasundhara Tower,28.6594,77.3619,2.5,Jio,Vasundhara Ghaziabad
+DELHI-CT-027,Dilshad Garden Tower,28.6786,77.3244,3.0,Vodafone,Dilshad Garden New Delhi
+DELHI-CT-028,Seelampur Tower,28.6703,77.2728,2.0,Airtel,Seelampur New Delhi
+DELHI-CT-029,Shastri Park Tower,28.6703,77.2894,2.5,Jio,Shastri Park New Delhi
+DELHI-CT-030,Model Town Tower,28.7178,77.1909,2.0,Vodafone,Model Town New Delhi
+DELHI-CT-031,GTB Nagar Tower,28.6969,77.2086,2.5,Airtel,GTB Nagar New Delhi
+DELHI-CT-032,Civil Lines Tower,28.6786,77.2244,3.0,Jio,Civil Lines New Delhi
+DELHI-CT-033,Kashmere Gate Tower,28.6653,77.2286,2.0,Vodafone,Kashmere Gate New Delhi
+DELHI-CT-034,Chandni Chowk Tower,28.6503,77.2303,2.5,Airtel,Chandni Chowk New Delhi
+DELHI-CT-035,Rajiv Chowk Tower,28.6328,77.2197,2.0,Jio,Rajiv Chowk New Delhi
+DELHI-CT-036,ITO Tower,28.6261,77.2486,2.5,Vodafone,ITO New Delhi
+DELHI-CT-037,India Gate Tower,28.6129,77.2295,3.0,Airtel,India Gate New Delhi
+DELHI-CT-038,Pragati Maidan Tower,28.6253,77.2453,2.0,Jio,Pragati Maidan New Delhi
+DELHI-CT-039,Akshardham Tower,28.6128,77.2778,2.5,Vodafone,Akshardham New Delhi
+DELHI-CT-040,Kalkaji Tower,28.5494,77.2628,2.0,Airtel,Kalkaji New Delhi
+DELHI-CT-041,Okhla Tower,28.5353,77.2728,2.5,Jio,Okhla New Delhi
+DELHI-CT-042,Govindpuri Tower,28.5353,77.2536,3.0,Vodafone,Govindpuri New Delhi
+DELHI-CT-043,Tughlakabad Tower,28.5086,77.2728,2.0,Airtel,Tughlakabad New Delhi
+DELHI-CT-044,Badarpur Tower,28.4953,77.3077,2.5,Jio,Badarpur New Delhi
+DELHI-CT-045,Faridabad Sector 16 Tower,28.4086,77.3111,2.0,Vodafone,Faridabad Sector 16 Haryana
+DELHI-CT-046,Jasola Tower,28.5436,77.2953,2.5,Airtel,Jasola New Delhi
+DELHI-CT-047,Khanpur Tower,28.5244,77.2953,3.0,Jio,Khanpur New Delhi
+DELHI-CT-048,Mehrauli Tower,28.5244,77.1836,2.0,Vodafone,Mehrauli New Delhi
+DELHI-CT-049,Qutub Minar Tower,28.5244,77.1853,2.5,Airtel,Qutub Minar New Delhi
+DELHI-CT-050,Mahipalpur Tower,28.5394,77.1336,2.0,Jio,Mahipalpur New Delhi
+DELHI-CT-051,IGI Airport Tower,28.5561,77.1003,3.0,Vodafone,IGI Airport New Delhi
+DELHI-CT-052,Dwarka Sector 21 Tower,28.5628,77.0598,2.5,Airtel,Dwarka Sector 21 New Delhi
+DELHI-CT-053,Uttam Nagar Tower,28.6219,77.0598,2.0,Jio,Uttam Nagar New Delhi
+DELHI-CT-054,Vikaspuri Tower,28.6428,77.0598,2.5,Vodafone,Vikaspuri New Delhi
+DELHI-CT-055,Tilak Nagar Tower,28.6428,77.0954,2.0,Airtel,Tilak Nagar New Delhi
+DELHI-CT-056,Subhash Nagar Tower,28.6428,77.1214,2.5,Jio,Subhash Nagar New Delhi
+DELHI-CT-057,Moti Nagar Tower,28.6594,77.1336,3.0,Vodafone,Moti Nagar New Delhi
+DELHI-CT-058,Kirti Nagar Tower,28.6594,77.1503,2.0,Airtel,Kirti Nagar New Delhi
+DELHI-CT-059,Shadipur Tower,28.6519,77.1586,2.5,Jio,Shadipur New Delhi
+DELHI-CT-060,Naraina Tower,28.6219,77.1336,2.0,Vodafone,Naraina New Delhi
+DELHI-CT-061,Delhi Cantt Tower,28.5861,77.1336,2.5,Airtel,Delhi Cantt New Delhi
+DELHI-CT-062,Palam Tower,28.5628,77.1003,3.0,Jio,Palam New Delhi
+DELHI-CT-063,Dwarka Sector 6 Tower,28.5928,77.0598,2.0,Vodafone,Dwarka Sector 6 New Delhi
+DELHI-CT-064,Munirka Tower,28.5594,77.1753,2.5,Airtel,Munirka New Delhi
+DELHI-CT-065,Malviya Nagar Tower,28.5394,77.2086,2.0,Jio,Malviya Nagar New Delhi
+DELHI-CT-066,Lal Kuan Tower,28.5111,77.2486,2.5,Vodafone,Lal Kuan New Delhi
+DELHI-CT-067,Sarita Vihar Tower,28.5286,77.2894,3.0,Airtel,Sarita Vihar New Delhi
+DELHI-CT-068,Kalkaji Mandir Tower,28.5494,77.2586,2.0,Jio,Kalkaji Mandir New Delhi
+DELHI-CT-069,Moolchand Tower,28.5761,77.2486,2.5,Vodafone,Moolchand New Delhi
+DELHI-CT-070,AIIMS Tower,28.5678,77.2086,2.0,Airtel,AIIMS New Delhi
+DELHI-CT-071,Green Park Tower,28.5594,77.2086,2.5,Jio,Green Park New Delhi
+DELHI-CT-072,IIT Delhi Tower,28.5453,77.1936,3.0,Vodafone,IIT Delhi New Delhi
+DELHI-CT-073,Safdarjung Tower,28.5678,77.2003,2.0,Airtel,Safdarjung New Delhi
+DELHI-CT-074,JNU Tower,28.5394,77.1669,2.5,Jio,JNU New Delhi
+DELHI-CT-075,Munirka Enclave Tower,28.5594,77.1836,2.0,Vodafone,Munirka Enclave New Delhi
+DELHI-CT-076,Vasant Vihar Tower,28.5594,77.1586,2.5,Airtel,Vasant Vihar New Delhi
+DELHI-CT-077,Anand Niketan Tower,28.5628,77.1836,3.0,Jio,Anand Niketan New Delhi
+DELHI-CT-078,Sarojini Nagar Tower,28.5728,77.1953,2.0,Vodafone,Sarojini Nagar New Delhi
+DELHI-CT-079,Bhikaji Cama Place Tower,28.5628,77.1753,2.5,Airtel,Bhikaji Cama Place New Delhi
+DELHI-CT-080,Daryaganj Tower,28.6428,77.2453,2.0,Jio,Daryaganj New Delhi
+DELHI-CT-081,Jama Masjid Tower,28.6503,77.2336,2.5,Vodafone,Jama Masjid New Delhi
+DELHI-CT-082,Lal Quila Tower,28.6561,77.2411,3.0,Airtel,Red Fort New Delhi
+DELHI-CT-083,Yamuna Bank Tower,28.6428,77.2811,2.0,Jio,Yamuna Bank New Delhi
+DELHI-CT-084,Anand Vihar Tower,28.6469,77.3161,2.5,Vodafone,Anand Vihar New Delhi
+DELHI-CT-085,Karkardooma Tower,28.6519,77.2978,2.0,Airtel,Karkardooma New Delhi
+DELHI-CT-086,Vivek Vihar Tower,28.6703,77.3077,2.5,Jio,Vivek Vihar New Delhi
+DELHI-CT-087,Krishna Nagar Tower,28.6594,77.2811,3.0,Vodafone,Krishna Nagar New Delhi
+DELHI-CT-088,Geeta Colony Tower,28.6594,77.2728,2.0,Airtel,Geeta Colony New Delhi
+DELHI-CT-089,IP Extension Tower,28.6353,77.2894,2.5,Jio,IP Extension New Delhi
+DELHI-CT-090,Patparganj Tower,28.6261,77.2978,2.0,Vodafone,Patparganj New Delhi
+DELHI-CT-091,Madhu Vihar Tower,28.6078,77.3077,2.5,Airtel,Madhu Vihar New Delhi
+DELHI-CT-092,Kondli Tower,28.5986,77.3244,3.0,Jio,Kondli New Delhi
+DELHI-CT-093,Kalyanpuri Tower,28.6078,77.2978,2.0,Vodafone,Kalyanpuri New Delhi
+DELHI-CT-094,Gazipur Tower,28.6078,77.3161,2.5,Airtel,Gazipur New Delhi
+DELHI-CT-095,Mandawali Tower,28.6261,77.2978,2.0,Jio,Mandawali New Delhi
+DELHI-CT-096,Pandav Nagar Tower,28.6353,77.2894,2.5,Vodafone,Pandav Nagar New Delhi
+DELHI-CT-097,Harsh Vihar Tower,28.7011,77.3077,3.0,Airtel,Harsh Vihar New Delhi
+DELHI-CT-098,Burari Tower,28.7511,77.1986,2.0,Jio,Burari New Delhi
+DELHI-CT-099,Shalimar Bagh Tower,28.7178,77.1586,2.5,Vodafone,Shalimar Bagh New Delhi
+DELHI-CT-100,Azadpur Tower,28.7011,77.1753,2.0,Airtel,Azadpur New Delhi

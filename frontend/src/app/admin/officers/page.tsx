@@ -26,6 +26,7 @@ import {
   IconEyeOff,
 } from "@tabler/icons-react";
 import { z } from "zod";
+import { useAuth } from "@/hooks/use-auth";
 
 const officerSchema = z.object({
   username: z
@@ -33,14 +34,14 @@ const officerSchema = z.object({
     .min(3, "Username must be at least 3 characters")
     .regex(
       /^[a-z0-9._]+$/,
-      "Only lowercase letters, numbers, dots, and underscores allowed"
+      "Only lowercase letters, numbers, dots, and underscores allowed",
     ),
   password: z
     .string()
     .min(8, "Password must be at least 8 characters")
     .regex(
       /(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
-      "Must include uppercase, lowercase, and a number"
+      "Must include uppercase, lowercase, and a number",
     ),
   name: z.string().min(2, "Name must be at least 2 characters"),
   email: z.string().email("Invalid email address"),
@@ -55,9 +56,6 @@ const officerSchema = z.object({
 });
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-
-// TODO: Get this from auth context
-const ADMIN_USER_ID = "74eb9bcc-a4fd-49b9-8f5d-b5d8e9a18e67";
 
 interface Officer {
   id: string;
@@ -76,6 +74,7 @@ interface Officer {
 }
 
 export default function OfficersPage() {
+  const { user } = useAuth();
   const [officers, setOfficers] = useState<Officer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -99,7 +98,7 @@ export default function OfficersPage() {
     department: "Cyber Crime",
     station: "",
     role: "OFFICER",
-    created_by: ADMIN_USER_ID,
+    created_by: user?.id || "",
   });
 
   const fetchOfficers = useCallback(async () => {
@@ -148,7 +147,7 @@ export default function OfficersPage() {
         department: "Cyber Crime",
         station: "",
         role: "OFFICER",
-        created_by: ADMIN_USER_ID,
+        created_by: user?.id || "",
       });
       fetchOfficers();
     } catch (err) {
@@ -258,7 +257,7 @@ export default function OfficersPage() {
   const handleDelete = async (id: string, name: string) => {
     if (
       !confirm(
-        `Are you sure you want to permanently delete ${name}? This action cannot be undone.`
+        `Are you sure you want to permanently delete ${name}? This action cannot be undone.`,
       )
     )
       return;
